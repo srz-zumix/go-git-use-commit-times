@@ -1,0 +1,32 @@
+name: GitHub Actions
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        git2go_v: [v28, v29, v30]
+    container:
+      image: docker://srzzumix/libgit2:git2go-${{ matrix.git2go_v }}
+    env:
+      GO_TAGS: ${{ matrix.git2go_v }}
+    steps:
+    - name: Set up Go 1.14
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.14
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+
+    - name: Get dependencies
+      run: go get -tags=${GO_TAGS} -v -t -d ./...
+
+    - name: Test code
+      run: go test -tags=${GO_TAGS} -v .
