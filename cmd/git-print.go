@@ -29,10 +29,10 @@ import (
 )
 
 func git_print_tree(tree *git.Tree) error {
-	fmt.Printf("obj:  %s\n", tree)
+	fmt.Printf("obj:  %v\n", tree)
 	fmt.Printf("Type: %s\n", tree.Type())
 	fmt.Printf("Id:   %s\n", tree.Id())
-	fmt.Printf("EntryCount: %s\n", tree.EntryCount())
+	fmt.Printf("EntryCount: %d\n", tree.EntryCount())
 	callback := func(e string, te *git.TreeEntry) int {
 		fmt.Println("  ", e, te.Name)
 		return 0
@@ -68,10 +68,10 @@ func git_print_tree_from_object(obj *git.Object) error {
 }
 
 func git_print_blob(blob *git.Blob) error {
-	fmt.Printf("obj:  %s\n", blob)
+	fmt.Printf("obj:  %v\n", blob)
 	fmt.Printf("Type: %s\n", blob.Type())
 	fmt.Printf("Id:   %s\n", blob.Id())
-	fmt.Printf("Size: %s\n", blob.Size())
+	fmt.Printf("Size: %d\n", blob.Size())
 	return nil
 }
 
@@ -84,14 +84,14 @@ func git_print_blob_from_object(obj *git.Object) error {
 }
 
 func git_print_commit(commit *git.Commit) error {
-	fmt.Printf("obj:  %s\n", commit)
+	fmt.Printf("obj:  %v\n", commit)
 	fmt.Printf("Type: %s\n", commit.Type())
 	fmt.Printf("Id:   %s\n", commit.Id())
 	author := commit.Author()
 	fmt.Printf("    Author:\n        Name:  %s\n        Email: %s\n        Date:  %s\n", author.Name, author.Email, author.When)
 	committer := commit.Committer()
 	fmt.Printf("    Committer:\n        Name:  %s\n        Email: %s\n        Date:  %s\n", committer.Name, committer.Email, committer.When)
-	fmt.Printf("    ParentCount: %s\n", int(commit.ParentCount()))
+	fmt.Printf("    ParentCount: %d\n", int(commit.ParentCount()))
 	fmt.Printf("    TreeId:      %s\n", commit.TreeId())
 	fmt.Printf("    Message:\n\n        %s\n\n", strings.Replace(commit.Message(), "\n", "\n        ", -1))
 	fmt.Printf("--------------\n")
