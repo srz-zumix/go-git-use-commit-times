@@ -1,4 +1,4 @@
-// +build !depth1
+// +build depth1
 
 /*
 Copyright © 2020 srz_zumix <https://github.com/srz-zumix>
@@ -24,13 +24,34 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
+
+func captureStdout(f func()) string {
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+
+	stdout := os.Stdout
+	os.Stdout = w
+
+	f()
+
+	os.Stdout = stdout
+	w.Close()
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	return buf.String()
+}
 
 func TestMTime(t *testing.T) {
 	repo, err := git.OpenRepository("../")
@@ -43,13 +64,22 @@ func TestMTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
+
 	fileinfo, err := os.Stat(filepath.Join("..", path))
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
-	timeformat := "2006-01-02 15:04:05"
-	expect, _ := time.Parse(timeformat, "2020-06-12 06:03:11")
-	expect = expect.UTC()
+	ref, err := repo.Head()
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+	commit, err := repo.LookupCommit(ref.Target())
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+
+	timeformat := "2006-01-02 15:04:05 MST"
+	expect := commit.Committer().When.UTC()
 	actual := fileinfo.ModTime().UTC()
 	if expect != actual {
 		t.Fatalf("failed modtime %s vs %s", expect.Format(timeformat), actual.Format(timeformat))

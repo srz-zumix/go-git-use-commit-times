@@ -22,8 +22,9 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"fmt"
 	"os"
+	"path/filepath"
+	"time"
 
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
@@ -39,17 +40,78 @@ func update_files(filemap map[string]struct{}, entries []string) (map[string]str
 	return filemap, matches
 }
 
+func filemap_to_entries(filemap map[string]struct{}) []string {
+	files := []string{}
+	for k, _ := range filemap {
+		files = append(files, k)
+	}
+	return files
+}
+
+func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions) ([]string, error) {
+	tree, err := commit.Tree()
+	if err != nil {
+		return nil, err
+	}
+	parent := commit.Parent(0)
+	if parent == nil {
+		return get_entries(tree)
+	}
+	parent_tree, err := parent.Tree()
+	if err != nil {
+		return nil, err
+	}
+	diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, &diffOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := []string{}
+	diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
+		entries = append(entries, file.NewFile.Path)
+		return nil, nil
+	}, git.DiffDetailFiles)
+
+	return entries, nil
+}
+
+func touch_files(repo *git.Repository, entries []string, mtime time.Time) error {
+	workdir := repo.Workdir()
+	for _, path := range entries {
+		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func use_commit_times(repo *git.Repository, files []string) error {
 	filemap := make(map[string]struct{})
 	for _, v := range files {
 		filemap[v] = struct{}{}
 	}
-	odb, err := repo.Odb()
+	rv, err := repo.Walk()
 	if err != nil {
 		return err
 	}
-	err = odb.ForEach(func(oid *git.Oid) error {
-		obj, err := repo.Lookup(oid)
+
+	rv.Sorting(git.SortTime)
+	rv.PushHead()
+
+	diffOpts, err := git.DefaultDiffOptions()
+	if err != nil {
+		return err
+	}
+
+	var oid git.Oid
+	var lastTime time.Time
+	for {
+		err = rv.Next(&oid)
+		if err != nil {
+			break
+		}
+		obj, err := repo.Lookup(&oid)
 		if err != nil {
 			return err
 		}
@@ -58,33 +120,33 @@ func use_commit_times(repo *git.Repository, files []string) error {
 			if err != nil {
 				return err
 			}
-			tree, err := commit.Tree()
-			if err != nil {
-				return err
-			}
-			entries, err := get_entries(tree)
+			lastTime = commit.Committer().When.UTC()
+			// git_print_commit(commit)
+			// fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
+
+			entries, err := get_file_entries(commit, diffOpts)
 			if err != nil {
 				return err
 			}
 
+			// fmt.Println(entries)
 			filemap, entries = update_files(filemap, entries)
 			if len(entries) > 0 {
 				// fmt.Println(entries)
-				time := commit.Committer().When
-				for _, path := range entries {
-					os.Chtimes(path, time, time)
-					// fileinfo, err := os.Stat(path)
-					// if err != nil {
-					// 	return err
-					// }
-					// fmt.Println(fileinfo.ModTime())
+				err = touch_files(repo, entries, lastTime)
+				if err != nil {
+					return err
 				}
 			}
 			if len(filemap) == 0 {
-				return fmt.Errorf("break")
+				return nil
 			}
 		}
-		return nil
-	})
+	}
+
+	// if len(filemap) != 0 {
+	// 	fmt.Println("Warning: The final commit log for the file was not found.")
+	// 	touch_files(repo, filemap_to_entries(filemap), lastTime)
+	// }
 	return nil
 }

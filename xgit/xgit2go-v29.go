@@ -29,18 +29,37 @@ import (
 
 type Blob = git.Blob
 type Commit = git.Commit
+type Diff = git.Diff
+type DiffDelta = git.DiffDelta
+type DiffForEachHunkCallback = git.DiffForEachHunkCallback
+type DiffOptions = git.DiffOptions
 type Odb = git.Odb
 type Oid = git.Oid
 type Object = git.Object
+type ObjectType = git.ObjectType
+type Reference = git.Reference
 type Repository = git.Repository
+type RevWalk = git.RevWalk
 type Tree = git.Tree
 type TreeEntry = git.TreeEntry
-type ObjectType = git.ObjectType
+
+const DiffDetailFiles = git.DiffDetailFiles
+const DiffDetailHunks = git.DiffDetailHunks
+const DiffDetailLines = git.DiffDetailLines
 
 const ObjectBlob = git.ObjectBlob
 const ObjectCommit = git.ObjectCommit
 const ObjectTree = git.ObjectTree
 
+const SortNone = git.SortNone
+const SortReverse = git.SortReverse
+const SortTime = git.SortTime
+const SortTopological = git.SortTopological
+
 func OpenRepository(path string) (*git.Repository, error) {
 	return git.OpenRepository(path)
+}
+
+func DefaultDiffOptions() (git.DiffOptions, error) {
+	return git.DefaultDiffOptions()
 }
