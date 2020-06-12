@@ -49,6 +49,7 @@ jobs:
     - name: Git set file times
       run: |
         git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
+        chmod +x ./git-set-file-times/git-set-file-times
         cd iutestA
         time ../git-set-file-times/git-set-file-times
         cd ../
