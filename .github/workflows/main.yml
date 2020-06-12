@@ -58,7 +58,7 @@ jobs:
       run: |
         go install -tags=${GO_TAGS}
         cd iutestB
-        time git-use-commit-times
+        time ../git-use-commit-times
         cd ../
 
     - name: Compare
