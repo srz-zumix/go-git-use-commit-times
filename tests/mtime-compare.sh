@@ -1,7 +1,7 @@
 #!/bin/bash
 
-DIR_A=$1
-DIR_B=$2
+DIR_A=$(cd $1; pwd)
+DIR_B=$(cd $2; pwd)
 
 export RESULT=0
 
@@ -11,8 +11,7 @@ function onerror() {
     date -r $1
     date -r ${DIR_B}/$1
     echo =======================
-    RESULT = 1
-    export RESULT
+    export RESULT=1
 }
 
 cd ${DIR_A}
