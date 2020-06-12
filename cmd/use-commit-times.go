@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -121,8 +122,8 @@ func use_commit_times(repo *git.Repository, files []string) error {
 				return err
 			}
 			lastTime = commit.Committer().When.UTC()
-			// git_print_commit(commit)
-			// fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
+			git_print_commit(commit)
+			fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
 
 			entries, err := get_file_entries(commit, diffOpts)
 			if err != nil {
@@ -132,7 +133,7 @@ func use_commit_times(repo *git.Repository, files []string) error {
 			// fmt.Println(entries)
 			filemap, entries = update_files(filemap, entries)
 			if len(entries) > 0 {
-				// fmt.Println(entries)
+				fmt.Println(entries)
 				err = touch_files(repo, entries, lastTime)
 				if err != nil {
 					return err
@@ -144,9 +145,12 @@ func use_commit_times(repo *git.Repository, files []string) error {
 		}
 	}
 
-	// if len(filemap) != 0 {
-	// 	fmt.Println("Warning: The final commit log for the file was not found.")
-	// 	touch_files(repo, filemap_to_entries(filemap), lastTime)
-	// }
+	if len(filemap) != 0 {
+		fmt.Println("Warning: The final commit log for the file was not found.")
+		err = touch_files(repo, filemap_to_entries(filemap), lastTime)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
