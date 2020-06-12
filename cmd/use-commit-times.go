@@ -98,7 +98,10 @@ func use_commit_times(repo *git.Repository, files []string) error {
 	}
 
 	rv.Sorting(git.SortTime)
-	rv.PushHead()
+	err = rv.PushHead()
+	if err != nil {
+		return err
+	}
 
 	diffOpts, err := git.DefaultDiffOptions()
 	if err != nil {
