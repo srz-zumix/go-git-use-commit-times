@@ -11,7 +11,7 @@ RUN apt-get update -q -y && \
     apt-get update -q -y && \
     apt-get install -y \
         golang \
-        wget curl libssl-dev pkg-config \
+        wget curl libssl-dev pkg-config time \
         git make cmake ca-certificates build-essential && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
