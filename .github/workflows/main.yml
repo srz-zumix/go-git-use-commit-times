@@ -29,7 +29,9 @@ jobs:
       run: go get -tags=${GO_TAGS} -v -t -d ./...
 
     - name: Test code
-      run: go test -tags="${GO_TAGS} depth1" -v ./...
+      run: |
+        git log -4
+        go test -tags="${GO_TAGS} depth1" -v ./...
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
