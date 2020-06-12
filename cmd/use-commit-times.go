@@ -113,7 +113,6 @@ func use_commit_times(repo *git.Repository, files []string) error {
 	for {
 		err = rv.Next(&oid)
 		if err != nil {
-			fmt.Println("%#v", err)
 			break
 		}
 		obj, err := repo.Lookup(&oid)
