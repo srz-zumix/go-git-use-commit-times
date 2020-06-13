@@ -166,11 +166,12 @@ func use_commit_times(repo *git.Repository, files []string, isShowProgress bool)
 			// fmt.Println(count)
 			// fmt.Println(entries)
 			// fmt.Println(strings.Join(entries, "\n"))
-			// err = touch_files(repo, entries, lastTime)
-			// if err != nil {
-			// 	return err
-			// }
+			err = touch_files(repo, entries, lastTime)
+			if err != nil {
+				return err
+			}
 			// go touch_files(repo, entries, lastTime)
+			// _ = lastTime
 			if bar != nil {
 				bar.Add(count)
 			}
