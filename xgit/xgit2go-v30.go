@@ -34,6 +34,7 @@ type Diff = git.Diff
 type DiffDelta = git.DiffDelta
 type DiffForEachHunkCallback = git.DiffForEachHunkCallback
 type DiffOptions = git.DiffOptions
+type ErrorCode = git.ErrorCode
 type Odb = git.Odb
 type Oid = git.Oid
 type Object = git.Object
@@ -56,9 +57,23 @@ const DeltaTypeChange = git.DeltaTypeChange
 const DeltaUnreadable = git.DeltaUnreadable
 const DeltaConflicted = git.DeltaConflicted
 
+const DiffFormatPatch = git.DiffFormatPatch
+const DiffFormatPatchHeader = git.DiffFormatPatchHeader
+const DiffFormatRaw = git.DiffFormatRaw
+const DiffFormatNameOnly = git.DiffFormatNameOnly
+const DiffFormatNameStatus = git.DiffFormatNameStatus
+
 const DiffDetailFiles = git.DiffDetailFiles
 const DiffDetailHunks = git.DiffDetailHunks
 const DiffDetailLines = git.DiffDetailLines
+
+const ErrIterOver = git.ErrIterOver
+
+const FilemodeBlob = git.FilemodeBlob
+const FilemodeBlobExecutable = git.FilemodeBlobExecutable
+const FilemodeLink = git.FilemodeLink
+const FilemodeTree = git.FilemodeTree
+const FilemodeCommit = git.FilemodeCommit
 
 const ObjectBlob = git.ObjectBlob
 const ObjectCommit = git.ObjectCommit
@@ -80,4 +95,8 @@ func OpenRepository(path string) (*git.Repository, error) {
 
 func DefaultDiffOptions() (git.DiffOptions, error) {
 	return git.DefaultDiffOptions()
+}
+
+func IsErrorCode(err error, errCode git.ErrorCode) bool {
+	return git.IsErrorCode(err, errCode)
 }

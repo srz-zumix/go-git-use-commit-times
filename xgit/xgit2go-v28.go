@@ -34,6 +34,7 @@ type Diff = git.Diff
 type DiffDelta = git.DiffDelta
 type DiffForEachHunkCallback = git.DiffForEachHunkCallback
 type DiffOptions = git.DiffOptions
+type ErrorCode = git.ErrorCode
 type Odb = git.Odb
 type Oid = git.Oid
 type Object = git.Object
@@ -60,6 +61,14 @@ const DiffDetailFiles = git.DiffDetailFiles
 const DiffDetailHunks = git.DiffDetailHunks
 const DiffDetailLines = git.DiffDetailLines
 
+const DiffFormatPatch = git.DiffFormatPatch
+const DiffFormatPatchHeader = git.DiffFormatPatchHeader
+const DiffFormatRaw = git.DiffFormatRaw
+const DiffFormatNameOnly = git.DiffFormatNameOnly
+const DiffFormatNameStatus = git.DiffFormatNameStatus
+
+const ErrIterOver = git.ErrIterOver
+
 const ObjectBlob = git.ObjectBlob
 const ObjectCommit = git.ObjectCommit
 const ObjectTree = git.ObjectTree
@@ -80,4 +89,8 @@ func OpenRepository(path string) (*git.Repository, error) {
 
 func DefaultDiffOptions() (git.DiffOptions, error) {
 	return git.DefaultDiffOptions()
+}
+
+func IsErrorCode(err error, errCode git.ErrorCode) bool {
+	return git.IsErrorCode(err, errCode)
 }

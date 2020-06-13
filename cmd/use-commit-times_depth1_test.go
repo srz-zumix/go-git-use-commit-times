@@ -60,7 +60,7 @@ func TestMTime(t *testing.T) {
 	}
 	path := "tests/testfile"
 	files := []string{path}
-	err = use_commit_times(repo, files)
+	err = use_commit_times(repo, files, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

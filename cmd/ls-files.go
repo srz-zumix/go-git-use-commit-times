@@ -48,7 +48,11 @@ func get_entries(tree *git.Tree) ([]string, error) {
 	files := []string{}
 	callback := func(e string, te *git.TreeEntry) int {
 		// fmt.Println("e: ", e, ", te: ", te.Name)
-		files = append(files, filepath.Join(e, te.Name))
+		switch te.Filemode {
+		case git.FilemodeTree:
+		default:
+			files = append(files, filepath.Join(e, te.Name))
+		}
 		return 0
 	}
 	tree.Walk(callback)

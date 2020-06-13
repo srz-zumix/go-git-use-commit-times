@@ -54,8 +54,12 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Println(files)
-		err = use_commit_times(repo, files)
+		// fmt.Println(strings.Join(files, "\n"))
+		progress, err := cmd.Flags().GetBool("progress")
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = use_commit_times(repo, files, progress)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -82,7 +86,7 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar")
 }
 
 // initConfig reads in config file and ENV variables if set.
