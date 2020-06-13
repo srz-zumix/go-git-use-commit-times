@@ -43,6 +43,18 @@ type RevWalk = git.RevWalk
 type Tree = git.Tree
 type TreeEntry = git.TreeEntry
 
+const DeltaUnmodified = git.DeltaUnmodified
+const DeltaAdded = git.DeltaAdded
+const DeltaDeleted = git.DeltaDeleted
+const DeltaModified = git.DeltaModified
+const DeltaRenamed = git.DeltaRenamed
+const DeltaCopied = git.DeltaCopied
+const DeltaIgnored = git.DeltaIgnored
+const DeltaUntracked = git.DeltaUntracked
+const DeltaTypeChange = git.DeltaTypeChange
+const DeltaUnreadable = git.DeltaUnreadable
+const DeltaConflicted = git.DeltaConflicted
+
 const DiffDetailFiles = git.DiffDetailFiles
 const DiffDetailHunks = git.DiffDetailHunks
 const DiffDetailLines = git.DiffDetailLines
@@ -55,6 +67,11 @@ const SortNone = git.SortNone
 const SortReverse = git.SortReverse
 const SortTime = git.SortTime
 const SortTopological = git.SortTopological
+
+const SubmoduleIgnoreNone = git.SubmoduleIgnoreNone
+const SubmoduleIgnoreUntracked = git.SubmoduleIgnoreUntracked
+const SubmoduleIgnoreDirty = git.SubmoduleIgnoreDirty
+const SubmoduleIgnoreAll = git.SubmoduleIgnoreAll
 
 func OpenRepository(path string) (*git.Repository, error) {
 	return git.OpenRepository(path)

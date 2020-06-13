@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/schollz/progressbar/v3"
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
@@ -49,31 +50,46 @@ func filemap_to_entries(filemap map[string]struct{}) []string {
 	return files
 }
 
-func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions) ([]string, error) {
+func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions, filemap map[string]struct{}) (map[string]struct{}, []string, error) {
 	tree, err := commit.Tree()
 	if err != nil {
-		return nil, err
+		return filemap, nil, err
 	}
 	parent := commit.Parent(0)
-	if parent == nil {
-		return get_entries(tree)
-	}
-	parent_tree, err := parent.Tree()
-	if err != nil {
-		return nil, err
+	var parent_tree *git.Tree = nil
+	if parent != nil {
+		parent_tree, err = parent.Tree()
+		if err != nil {
+			return filemap, nil, err
+		}
 	}
 	diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, &diffOpts)
 	if err != nil {
-		return nil, err
+		return filemap, nil, err
 	}
 
 	entries := []string{}
 	diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
-		entries = append(entries, file.NewFile.Path)
+		switch file.Status {
+		case git.DeltaAdded:
+			fallthrough
+		case git.DeltaModified:
+			fallthrough
+		case git.DeltaRenamed:
+			fallthrough
+		case git.DeltaCopied:
+			fallthrough
+		case git.DeltaTypeChange:
+			path := file.NewFile.Path
+			if _, ok := filemap[path]; ok {
+				entries = append(entries, path)
+				delete(filemap, path)
+			}
+		}
 		return nil, nil
 	}, git.DiffDetailFiles)
 
-	return entries, nil
+	return filemap, entries, nil
 }
 
 func touch_files(repo *git.Repository, entries []string, mtime time.Time) error {
@@ -88,6 +104,7 @@ func touch_files(repo *git.Repository, entries []string, mtime time.Time) error 
 }
 
 func use_commit_times(repo *git.Repository, files []string) error {
+	bar := progressbar.Default(int64(len(files)))
 	filemap := make(map[string]struct{})
 	for _, v := range files {
 		filemap[v] = struct{}{}
@@ -107,53 +124,85 @@ func use_commit_times(repo *git.Repository, files []string) error {
 	if err != nil {
 		return err
 	}
+	diffOpts.IgnoreSubmodules = git.SubmoduleIgnoreAll
 
 	var oid git.Oid
 	var lastTime time.Time
-	for {
-		err = rv.Next(&oid)
-		if err != nil {
-			break
-		}
-		obj, err := repo.Lookup(&oid)
+	err = rv.Next(&oid)
+	if err == nil {
+		commit, err := repo.LookupCommit(&oid)
 		if err != nil {
 			return err
 		}
-		if obj.Type() == git.ObjectCommit {
-			commit, err := obj.AsCommit()
+
+		for {
+			lastTime = commit.Author().When.UTC()
+			tree, err := commit.Tree()
 			if err != nil {
 				return err
 			}
-			lastTime = commit.Committer().When.UTC()
-			git_print_commit(commit)
-			fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
-
-			entries, err := get_file_entries(commit, diffOpts)
-			if err != nil {
-				return err
-			}
-
-			// fmt.Println(entries)
-			filemap, entries = update_files(filemap, entries)
-			if len(entries) > 0 {
-				fmt.Println(entries)
-				err = touch_files(repo, entries, lastTime)
+			parent := commit.Parent(0)
+			var parent_tree *git.Tree = nil
+			if parent != nil {
+				parent_tree, err = parent.Tree()
 				if err != nil {
 					return err
 				}
 			}
+			diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, &diffOpts)
+			if err != nil {
+				return err
+			}
+
+			entries := []string{}
+			diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
+				switch file.Status {
+				case git.DeltaAdded:
+					fallthrough
+				case git.DeltaModified:
+					fallthrough
+				case git.DeltaRenamed:
+					fallthrough
+				case git.DeltaCopied:
+					fallthrough
+				case git.DeltaTypeChange:
+					path := file.NewFile.Path
+					if _, ok := filemap[path]; ok {
+						entries = append(entries, path)
+						delete(filemap, path)
+					}
+				}
+				return nil, nil
+			}, git.DiffDetailFiles)
+
+			// git_print_commit(commit)
+			// fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
+
+			count := len(entries)
+			if count > 0 {
+				// fmt.Println(entries)
+				// err = touch_files(repo, entries, lastTime)
+				// if err != nil {
+				// 	return err
+				// }
+				go touch_files(repo, entries, lastTime)
+				bar.Add(count)
+			}
 			if len(filemap) == 0 {
 				return nil
 			}
+			commit = parent
+			if commit == nil {
+				break
+			}
 		}
 	}
-
 	if len(filemap) != 0 {
 		fmt.Println("Warning: The final commit log for the file was not found.")
-		err = touch_files(repo, filemap_to_entries(filemap), lastTime)
-		if err != nil {
-			return err
-		}
+		// err = touch_files(repo, filemap_to_entries(filemap), lastTime)
+		// if err != nil {
+		// 	return err
+		// }
 	}
 	return nil
 }
