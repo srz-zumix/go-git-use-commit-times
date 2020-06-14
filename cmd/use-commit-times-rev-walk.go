@@ -125,9 +125,6 @@ func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 		if err != nil {
 			return count, err
 		}
-		if i > 0 {
-			mtime = parent.Committer().When.UTC()
-		}
 		for _, path := range strings.Split(string(buf), "\n") {
 			if _, ok := filemap[path]; ok {
 				cb(path, mtime)
@@ -163,8 +160,7 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	}
 	defer rv.Free()
 
-	// rv.Sorting(git.SortTime)
-	rv.Sorting(git.SortNone)
+	rv.Sorting(git.SortTime)
 	err = rv.PushHead()
 	if err != nil {
 		return err
