@@ -61,11 +61,13 @@ const DiffDetailFiles = git.DiffDetailFiles
 const DiffDetailHunks = git.DiffDetailHunks
 const DiffDetailLines = git.DiffDetailLines
 
-const DiffFormatPatch = git.DiffFormatPatch
-const DiffFormatPatchHeader = git.DiffFormatPatchHeader
-const DiffFormatRaw = git.DiffFormatRaw
-const DiffFormatNameOnly = git.DiffFormatNameOnly
-const DiffFormatNameStatus = git.DiffFormatNameStatus
+type DiffFormat int
+
+const DiffFormatPatch = 0
+const DiffFormatPatchHeader = 1
+const DiffFormatRaw = 2
+const DiffFormatNameOnly = 3
+const DiffFormatNameStatus = 4
 
 const ErrIterOver = git.ErrIterOver
 
@@ -99,4 +101,22 @@ func DefaultDiffOptions() (git.DiffOptions, error) {
 
 func IsErrorCode(err error, errCode git.ErrorCode) bool {
 	return git.IsErrorCode(err, errCode)
+}
+
+func (diff *Diff) ToBuf(format DiffFormat) ([]byte, error) {
+	if diff.ptr == nil {
+		return nil, ErrInvalid
+	}
+
+	if format == DiffFormatNameOnly {
+		return nil, ErrInvalid
+	} else {
+		files := ""
+		diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
+			files += file.NewFile.Path + "\n"
+			return nil, nil
+		}, git.DiffDetailFiles)
+
+		return []byte(files), nil
+	}
 }
