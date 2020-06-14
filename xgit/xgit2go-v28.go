@@ -103,13 +103,13 @@ func IsErrorCode(err error, errCode git.ErrorCode) bool {
 	return git.IsErrorCode(err, errCode)
 }
 
-func (diff *Diff) ToBuf(format DiffFormat) ([]byte, error) {
+func DiffToBuf(diff *git.Diff, format DiffFormat) ([]byte, error) {
 	if diff.ptr == nil {
-		return nil, ErrInvalid
+		return nil, git.ErrInvalid
 	}
 
 	if format == DiffFormatNameOnly {
-		return nil, ErrInvalid
+		return nil, git.ErrInvalid
 	} else {
 		files := ""
 		diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {

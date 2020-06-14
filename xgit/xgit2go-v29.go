@@ -99,3 +99,7 @@ func DefaultDiffOptions() (git.DiffOptions, error) {
 func IsErrorCode(err error, errCode git.ErrorCode) bool {
 	return git.IsErrorCode(err, errCode)
 }
+
+func DiffToBuf(diff *git.Diff, format git.DiffFormat) ([]byte, error) {
+	return diff.ToBuf(format)
+}

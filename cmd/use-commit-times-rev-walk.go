@@ -121,7 +121,7 @@ func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 			return count, err
 		}
 
-		buf, err := diff.ToBuf(git.DiffFormatNameOnly)
+		buf, err := git.DiffToBuf(diff, git.DiffFormatNameOnly)
 		if err != nil {
 			return count, err
 		}
