@@ -18,10 +18,12 @@ RUN apt-get update -q -y && \
 
 WORKDIR /usr/local/src
 RUN echo ${LIBGIT2_TAG} && \
-    git clone https://github.com/libgit2/libgit2.git -b ${LIBGIT2_TAG} && \
-    git clone https://github.com/srz-zumix/git-use-commit-times.git
+    git clone https://github.com/libgit2/libgit2.git -b ${LIBGIT2_TAG}
 WORKDIR /usr/local/src/libgit2/build
 RUN cmake .. -DCMAKE_INSTALL_PREFIX=/usr && cmake --build . --target install
 
+COPY . /usr/local/src/git-use-commit-times
 WORKDIR /usr/local/src/git-use-commit-times
 RUN go install
+
+ENV PATH $PATH:/root/go/bin

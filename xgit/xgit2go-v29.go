@@ -29,18 +29,77 @@ import (
 
 type Blob = git.Blob
 type Commit = git.Commit
+type Diff = git.Diff
+type DiffDelta = git.DiffDelta
+type DiffForEachHunkCallback = git.DiffForEachHunkCallback
+type DiffOptions = git.DiffOptions
+type ErrorCode = git.ErrorCode
 type Odb = git.Odb
 type Oid = git.Oid
 type Object = git.Object
+type ObjectType = git.ObjectType
+type Reference = git.Reference
 type Repository = git.Repository
+type RevWalk = git.RevWalk
 type Tree = git.Tree
 type TreeEntry = git.TreeEntry
-type ObjectType = git.ObjectType
+
+const DeltaUnmodified = git.DeltaUnmodified
+const DeltaAdded = git.DeltaAdded
+const DeltaDeleted = git.DeltaDeleted
+const DeltaModified = git.DeltaModified
+const DeltaRenamed = git.DeltaRenamed
+const DeltaCopied = git.DeltaCopied
+const DeltaIgnored = git.DeltaIgnored
+const DeltaUntracked = git.DeltaUntracked
+const DeltaTypeChange = git.DeltaTypeChange
+const DeltaUnreadable = git.DeltaUnreadable
+const DeltaConflicted = git.DeltaConflicted
+
+const DiffDetailFiles = git.DiffDetailFiles
+const DiffDetailHunks = git.DiffDetailHunks
+const DiffDetailLines = git.DiffDetailLines
+
+const DiffFormatPatch = git.DiffFormatPatch
+const DiffFormatPatchHeader = git.DiffFormatPatchHeader
+const DiffFormatRaw = git.DiffFormatRaw
+const DiffFormatNameOnly = git.DiffFormatNameOnly
+const DiffFormatNameStatus = git.DiffFormatNameStatus
+
+const ErrIterOver = git.ErrIterOver
+
+const FilemodeBlob = git.FilemodeBlob
+const FilemodeBlobExecutable = git.FilemodeBlobExecutable
+const FilemodeLink = git.FilemodeLink
+const FilemodeTree = git.FilemodeTree
+const FilemodeCommit = git.FilemodeCommit
 
 const ObjectBlob = git.ObjectBlob
 const ObjectCommit = git.ObjectCommit
 const ObjectTree = git.ObjectTree
 
+const SortNone = git.SortNone
+const SortReverse = git.SortReverse
+const SortTime = git.SortTime
+const SortTopological = git.SortTopological
+
+const SubmoduleIgnoreNone = git.SubmoduleIgnoreNone
+const SubmoduleIgnoreUntracked = git.SubmoduleIgnoreUntracked
+const SubmoduleIgnoreDirty = git.SubmoduleIgnoreDirty
+const SubmoduleIgnoreAll = git.SubmoduleIgnoreAll
+
 func OpenRepository(path string) (*git.Repository, error) {
 	return git.OpenRepository(path)
+}
+
+func DefaultDiffOptions() (git.DiffOptions, error) {
+	return git.DefaultDiffOptions()
+}
+
+func IsErrorCode(err error, errCode git.ErrorCode) bool {
+	return git.IsErrorCode(err, errCode)
+}
+
+func DiffToBuf(diff *git.Diff, format git.DiffFormat) ([]byte, error) {
+	return diff.ToBuf(format)
 }

@@ -24,67 +24,70 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"github.com/schollz/progressbar/v3"
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-func update_files(filemap map[string]struct{}, entries []string) (map[string]struct{}, []string) {
-	matches := []string{}
-	for _, e := range entries {
-		if _, ok := filemap[e]; ok {
-			matches = append(matches, e)
-			delete(filemap, e)
-		}
-	}
-	return filemap, matches
-}
-
-func use_commit_times(repo *git.Repository, files []string) error {
-	filemap := make(map[string]struct{})
-	for _, v := range files {
-		filemap[v] = struct{}{}
-	}
-	odb, err := repo.Odb()
+func update_time_byid(repo *git.Repository, path string, id *git.Oid) error {
+	obj, err := repo.Lookup(id)
 	if err != nil {
 		return err
 	}
-	err = odb.ForEach(func(oid *git.Oid) error {
-		obj, err := repo.Lookup(oid)
+
+	var commit *git.Commit = nil
+	switch obj.Type() {
+	case git.ObjectCommit:
+		commit, err = obj.AsCommit()
 		if err != nil {
 			return err
 		}
-		if obj.Type() == git.ObjectCommit {
-			commit, err := obj.AsCommit()
-			if err != nil {
-				return err
-			}
-			tree, err := commit.Tree()
-			if err != nil {
-				return err
-			}
-			entries, err := get_entries(tree)
-			if err != nil {
-				return err
-			}
+		defer commit.Free()
+		// default:
+		// 	fmt.Println(obj.Type())
+	}
 
-			filemap, entries = update_files(filemap, entries)
-			if len(entries) > 0 {
-				// fmt.Println(entries)
-				time := commit.Committer().When
-				for _, path := range entries {
-					os.Chtimes(path, time, time)
-					// fileinfo, err := os.Stat(path)
-					// if err != nil {
-					// 	return err
-					// }
-					// fmt.Println(fileinfo.ModTime())
-				}
-			}
-			if len(filemap) == 0 {
-				return fmt.Errorf("break")
-			}
+	if commit == nil {
+		return fmt.Errorf("commit not found")
+	}
+	lastTime := commit.Committer().When.UTC()
+	os.Chtimes(path, lastTime, lastTime)
+	return nil
+}
+
+func use_commit_times_tree_walk(repo *git.Repository, filemap FileIdMap, isShowProgress bool) error {
+	total := int64(len(filemap))
+	current := 0
+	var bar *progressbar.ProgressBar = nil
+	if isShowProgress {
+		bar = progressbar.Default(total)
+	}
+
+	workdir := repo.Workdir()
+
+	updater := func(path string, id *git.Oid) error {
+		err := update_time_byid(repo, filepath.Join(workdir, path), id)
+		if err != nil {
+			return err
+		}
+		current++
+		if bar != nil {
+			bar.Add(1)
 		}
 		return nil
-	})
+	}
+
+	for k, v := range filemap {
+		err := updater(k, v)
+		if err != nil {
+			return err
+		}
+		// go updater(k, v)
+	}
+
+	if bar != nil {
+		bar.Finish()
+	}
 	return nil
 }

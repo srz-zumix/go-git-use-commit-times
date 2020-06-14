@@ -35,6 +35,27 @@ import (
 
 var cfgFile string
 
+func use_commit_times(path string, progress bool) error {
+	repo, err := git.OpenRepository(path)
+	if err != nil {
+		return err
+	}
+	defer repo.Free()
+
+	// fmt.Println(repo)
+	filemap, err := ls_files(repo)
+	if err != nil {
+		return err
+	}
+	// fmt.Println(strings.Join(files, "\n"))
+	err = use_commit_times_rev_walk(repo, filemap, progress)
+	// err = use_commit_times_tree_walk(repo, filemap, progress)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "git-use-commit-times",
@@ -45,17 +66,12 @@ var rootCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		repo, err := git.OpenRepository(".")
+		progress, err := cmd.Flags().GetBool("progress")
 		if err != nil {
 			log.Fatal(err)
 		}
-		// fmt.Println(repo)
-		files, err := ls_files(repo)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// fmt.Println(files)
-		err = use_commit_times(repo, files)
+		err = use_commit_times(".", progress)
+		// err = use_commit_times_tree_walk(repo, filemap, progress)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -82,7 +98,8 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar")
+	rootCmd.Flags().BoolP("by-commit", "c", false, "Get timestamp by commit")
 }
 
 // initConfig reads in config file and ENV variables if set.

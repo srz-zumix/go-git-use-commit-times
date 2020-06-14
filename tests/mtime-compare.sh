@@ -1,16 +1,28 @@
 #!/bin/bash
 
-DIR_A=$1
-DIR_B=$2
+DIR_A=$(cd $1; pwd)
+DIR_B=$(cd $2; pwd)
+
+export RESULT=0
+
+function onerror() {
+    echo =======================
+    echo $1
+    date -r $1
+    date -r ${DIR_B}/$1
+    echo =======================
+    export RESULT=1
+}
 
 cd ${DIR_A}
-for file in `\find . -type f`; do
+for file in `\find . -type f -name "*" -not -path "*/.git/*"`; do
     if [ $file -nt ${DIR_B}/${file} ]; then
-        echo $file
-        exit 1
+        onerror $file
     fi
     if [ $file -ot ${DIR_B}/${file} ]; then
-        echo $file
-        exit 1
+        onerror $file
     fi
 done
+cd -
+
+exit ${RESULT}

@@ -1,3 +1,5 @@
+// +build depth1
+
 /*
 Copyright © 2020 srz_zumix <https://github.com/srz-zumix>
 
@@ -22,62 +24,68 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"bytes"
+	"io"
+	"os"
 	"path/filepath"
+	"testing"
 
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-type FileIdMap = map[string]*git.Oid
-
-func ls_files(repo *git.Repository) (FileIdMap, error) {
-	ref, err := repo.Head()
+func captureStdout(f func()) string {
+	r, w, err := os.Pipe()
 	if err != nil {
-		return nil, err
-	}
-	obj, err := ref.Peel(git.ObjectTree)
-	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
-	tree, err := obj.AsTree()
-	if err != nil {
-		return nil, err
-	}
-	files := make(FileIdMap, tree.EntryCount())
-	callback := func(e string, te *git.TreeEntry) int {
-		switch te.Filemode {
-		case git.FilemodeTree:
-		default:
-			path := filepath.Join(e, te.Name)
-			files[path] = te.Id
-		}
-		return 0
-	}
-	tree.Walk(callback)
-	return files, nil
+	stdout := os.Stdout
+	os.Stdout = w
+
+	f()
+
+	os.Stdout = stdout
+	w.Close()
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	return buf.String()
 }
 
-func get_fileidmap(repo *git.Repository, files []string) (FileIdMap, error) {
-	ref, err := repo.Head()
+func TestMTime(t *testing.T) {
+	repo, err := git.OpenRepository("../")
 	if err != nil {
-		return nil, err
+		t.Fatalf("failed test %#v", err)
 	}
-	obj, err := ref.Peel(git.ObjectTree)
+	path := "tests/testfile"
+	files := []string{path}
+	filemap, err := get_fileidmap(repo, files)
 	if err != nil {
-		return nil, err
+		t.Fatalf("failed test %#v", err)
+	}
+	err = use_commit_times_rev_walk(repo, filemap, false)
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
 	}
 
-	tree, err := obj.AsTree()
+	fileinfo, err := os.Stat(filepath.Join("..", path))
 	if err != nil {
-		return nil, err
+		t.Fatalf("failed test %#v", err)
 	}
-	filemap := make(FileIdMap, len(files))
-	for _, path := range files {
-		entry, err := tree.EntryByPath(path)
-		if err != nil {
-			return nil, err
-		}
-		filemap[path] = entry.Id
+	ref, err := repo.Head()
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
 	}
-	return filemap, nil
+	commit, err := repo.LookupCommit(ref.Target())
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+
+	timeformat := "2006-01-02 15:04:05 MST"
+	expect := commit.Committer().When.UTC()
+	actual := fileinfo.ModTime().UTC()
+	if expect != actual {
+		t.Fatalf("failed modtime %s vs %s", expect.Format(timeformat), actual.Format(timeformat))
+	}
 }
