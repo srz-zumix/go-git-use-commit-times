@@ -125,6 +125,9 @@ func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 		if err != nil {
 			return count, err
 		}
+		if i > 0 {
+			mtime = parent.Committer().When.UTC()
+		}
 		for _, path := range strings.Split(string(buf), "\n") {
 			if _, ok := filemap[path]; ok {
 				cb(path, mtime)

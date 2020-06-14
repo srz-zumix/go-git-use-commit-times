@@ -15,7 +15,7 @@ function onerror() {
 }
 
 cd ${DIR_A}
-for file in `\find . -type f`; do
+for file in `\find . -type d -name .git -prune -o -type f`; do
     if [ $file -nt ${DIR_B}/${file} ]; then
         onerror $file
     fi
