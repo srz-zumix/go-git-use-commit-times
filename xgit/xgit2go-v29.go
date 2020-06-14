@@ -68,6 +68,12 @@ const DiffFormatNameStatus = git.DiffFormatNameStatus
 
 const ErrIterOver = git.ErrIterOver
 
+const FilemodeBlob = git.FilemodeBlob
+const FilemodeBlobExecutable = git.FilemodeBlobExecutable
+const FilemodeLink = git.FilemodeLink
+const FilemodeTree = git.FilemodeTree
+const FilemodeCommit = git.FilemodeCommit
+
 const ObjectBlob = git.ObjectBlob
 const ObjectCommit = git.ObjectCommit
 const ObjectTree = git.ObjectTree
