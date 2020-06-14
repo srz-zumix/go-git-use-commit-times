@@ -1,3 +1,5 @@
+// +build !depth1
+
 /*
 Copyright © 2020 srz_zumix <https://github.com/srz-zumix>
 
@@ -22,62 +24,13 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"path/filepath"
-
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
+	"testing"
 )
 
-type FileIdMap = map[string]*git.Oid
-
-func ls_files(repo *git.Repository) (FileIdMap, error) {
-	ref, err := repo.Head()
+func BenchmarkRunCommand(b *testing.B) {
+	b.ResetTimer()
+	err := use_commit_times("../", false)
 	if err != nil {
-		return nil, err
+		b.Fatalf("failed test %#v", err)
 	}
-	obj, err := ref.Peel(git.ObjectTree)
-	if err != nil {
-		return nil, err
-	}
-
-	tree, err := obj.AsTree()
-	if err != nil {
-		return nil, err
-	}
-	files := make(FileIdMap, tree.EntryCount())
-	callback := func(e string, te *git.TreeEntry) int {
-		switch te.Filemode {
-		case git.FilemodeTree:
-		default:
-			path := filepath.Join(e, te.Name)
-			files[path] = te.Id
-		}
-		return 0
-	}
-	tree.Walk(callback)
-	return files, nil
-}
-
-func get_fileidmap(repo *git.Repository, files []string) (FileIdMap, error) {
-	ref, err := repo.Head()
-	if err != nil {
-		return nil, err
-	}
-	obj, err := ref.Peel(git.ObjectTree)
-	if err != nil {
-		return nil, err
-	}
-
-	tree, err := obj.AsTree()
-	if err != nil {
-		return nil, err
-	}
-	filemap := make(FileIdMap, len(files))
-	for _, path := range files {
-		entry, err := tree.EntryByPath(path)
-		if err != nil {
-			return nil, err
-		}
-		filemap[path] = entry.Id
-	}
-	return filemap, nil
 }

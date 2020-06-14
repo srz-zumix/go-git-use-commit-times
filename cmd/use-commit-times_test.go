@@ -39,11 +39,16 @@ func TestMTime(t *testing.T) {
 	}
 	path := "tests/testfile"
 	files := []string{path}
+	filemap, err := get_fileidmap(repo, files)
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+
 	testfile := filepath.Join("..", path)
 	now := time.Now()
 	os.Chtimes(testfile, now, now)
 
-	err = use_commit_times(repo, files, false)
+	err = use_commit_times_rev_walk(repo, filemap, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

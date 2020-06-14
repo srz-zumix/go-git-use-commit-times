@@ -22,62 +22,72 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 
+	"github.com/schollz/progressbar/v3"
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-type FileIdMap = map[string]*git.Oid
-
-func ls_files(repo *git.Repository) (FileIdMap, error) {
-	ref, err := repo.Head()
+func update_time_byid(repo *git.Repository, path string, id *git.Oid) error {
+	obj, err := repo.Lookup(id)
 	if err != nil {
-		return nil, err
-	}
-	obj, err := ref.Peel(git.ObjectTree)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
-	tree, err := obj.AsTree()
-	if err != nil {
-		return nil, err
-	}
-	files := make(FileIdMap, tree.EntryCount())
-	callback := func(e string, te *git.TreeEntry) int {
-		switch te.Filemode {
-		case git.FilemodeTree:
-		default:
-			path := filepath.Join(e, te.Name)
-			files[path] = te.Id
+	var commit *git.Commit = nil
+	switch obj.Type() {
+	case git.ObjectCommit:
+		commit, err = obj.AsCommit()
+		if err != nil {
+			return err
 		}
-		return 0
+		defer commit.Free()
+		// default:
+		// 	fmt.Println(obj.Type())
 	}
-	tree.Walk(callback)
-	return files, nil
+
+	if commit == nil {
+		return fmt.Errorf("commit not found")
+	}
+	lastTime := commit.Committer().When.UTC()
+	os.Chtimes(path, lastTime, lastTime)
+	return nil
 }
 
-func get_fileidmap(repo *git.Repository, files []string) (FileIdMap, error) {
-	ref, err := repo.Head()
-	if err != nil {
-		return nil, err
-	}
-	obj, err := ref.Peel(git.ObjectTree)
-	if err != nil {
-		return nil, err
+func use_commit_times_tree_walk(repo *git.Repository, filemap FileIdMap, isShowProgress bool) error {
+	total := int64(len(filemap))
+	current := 0
+	var bar *progressbar.ProgressBar = nil
+	if isShowProgress {
+		bar = progressbar.Default(total)
 	}
 
-	tree, err := obj.AsTree()
-	if err != nil {
-		return nil, err
-	}
-	filemap := make(FileIdMap, len(files))
-	for _, path := range files {
-		entry, err := tree.EntryByPath(path)
+	workdir := repo.Workdir()
+
+	updater := func(path string, id *git.Oid) error {
+		err := update_time_byid(repo, filepath.Join(workdir, path), id)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		filemap[path] = entry.Id
+		current++
+		if bar != nil {
+			bar.Add(1)
+		}
+		return nil
 	}
-	return filemap, nil
+
+	for k, v := range filemap {
+		err := updater(k, v)
+		if err != nil {
+			return err
+		}
+		// go updater(k, v)
+	}
+
+	if bar != nil {
+		bar.Finish()
+	}
+	return nil
 }

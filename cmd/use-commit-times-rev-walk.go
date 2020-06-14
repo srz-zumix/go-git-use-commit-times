@@ -25,49 +25,53 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-func update_files(filemap map[string]struct{}, entries []string) (map[string]struct{}, []string) {
-	matches := []string{}
-	for _, e := range entries {
-		if _, ok := filemap[e]; ok {
-			matches = append(matches, e)
-			delete(filemap, e)
-		}
-	}
-	return filemap, matches
-}
-
 func filemap_to_entries(filemap map[string]struct{}) []string {
-	files := []string{}
+	files := make([]string, len(filemap))
 	for k, _ := range filemap {
 		files = append(files, k)
 	}
 	return files
 }
 
-func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions, filemap map[string]struct{}) (map[string]struct{}, []string, error) {
+func touch_files(workdir string, entries []string, mtime time.Time) error {
+	for _, path := range entries {
+		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type ChtimeCallback = func(path string, mtime time.Time) error
+
+func get_file_entries(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
 	tree, err := commit.Tree()
+	count := 0
 	if err != nil {
-		return filemap, nil, err
+		return count, err
 	}
 	defer tree.Free()
 
-	entries := []string{}
 	for i := uint(0); i < commit.ParentCount(); i++ {
 		parent := commit.Parent(i)
 		parent_tree, err := parent.Tree()
 		if err != nil {
-			return filemap, nil, err
+			return count, err
 		}
-		diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, &diffOpts)
+		diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, nil)
 		if err != nil {
-			return filemap, nil, err
+			return count, err
 		}
+		mtime := commit.Committer().When.UTC()
 
 		diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
 			switch file.Status {
@@ -82,7 +86,8 @@ func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions, filemap map[
 			case git.DeltaTypeChange:
 				path := file.NewFile.Path
 				if _, ok := filemap[path]; ok {
-					entries = append(entries, path)
+					cb(path, mtime)
+					count++
 					delete(filemap, path)
 				}
 			}
@@ -93,93 +98,110 @@ func get_file_entries(commit *git.Commit, diffOpts git.DiffOptions, filemap map[
 		parent.Free()
 		parent_tree.Free()
 	}
-	return filemap, entries, nil
+	return count, nil
 }
 
-func touch_files(repo *git.Repository, entries []string, mtime time.Time) error {
-	workdir := repo.Workdir()
-	for _, path := range entries {
-		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
+func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
+	count := 0
+	tree, err := commit.Tree()
+	if err != nil {
+		return count, err
+	}
+	defer tree.Free()
+	mtime := commit.Committer().When.UTC()
+
+	for i := uint(0); i < commit.ParentCount(); i++ {
+		parent := commit.Parent(i)
+		parent_tree, err := parent.Tree()
 		if err != nil {
-			return err
+			return count, err
+		}
+		diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, nil)
+		if err != nil {
+			return count, err
+		}
+
+		buf, err := diff.ToBuf(git.DiffFormatNameOnly)
+		if err != nil {
+			return count, err
+		}
+		for _, path := range strings.Split(string(buf), "\n") {
+			if _, ok := filemap[path]; ok {
+				cb(path, mtime)
+				count++
+				delete(filemap, path)
+			}
 		}
 	}
-	return nil
+	return count, nil
 }
 
-func use_commit_times(repo *git.Repository, files []string, isShowProgress bool) error {
-	total := int64(len(files))
+func get_file_entries_dummy(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
+	_ = commit
+	_ = filemap
+	_ = cb
+	return 0, nil
+}
+
+func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowProgress bool) error {
+	// defer profile.Start(profile.ProfilePath(".")).Stop()
+
+	total := int64(len(filemap))
 	current := 0
 	var bar *progressbar.ProgressBar = nil
 	if isShowProgress {
 		bar = progressbar.Default(total)
 	}
-	filemap := make(map[string]struct{})
-	for _, v := range files {
-		filemap[v] = struct{}{}
-	}
+
+	workdir := repo.Workdir()
 	rv, err := repo.Walk()
 	if err != nil {
 		return err
 	}
+	defer rv.Free()
 
 	// rv.Sorting(git.SortTime)
+	rv.Sorting(git.SortNone)
 	err = rv.PushHead()
 	if err != nil {
 		return err
 	}
 
-	diffOpts, err := git.DefaultDiffOptions()
+	onchtimes := func(path string, mtime time.Time) error {
+		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	var m sync.Mutex
+
+	onvisit := func(commit *git.Commit) bool {
+		m.Lock()
+		if len(filemap) == 0 {
+			return false
+		}
+
+		go func(commit *git.Commit) {
+			defer m.Unlock()
+			count, err := get_file_entries_bybuf(commit, filemap, onchtimes)
+			if err != nil {
+				return
+			}
+			if count > 0 {
+				if bar != nil {
+					bar.Add(count)
+				}
+				current += count
+			}
+		}(commit)
+		return true
+	}
+
+	err = rv.Iterate(onvisit)
 	if err != nil {
 		return err
-	}
-	diffOpts.IgnoreSubmodules = git.SubmoduleIgnoreAll
-
-	var lastTime time.Time
-
-	oid := new(git.Oid)
-	for {
-		err = rv.Next(oid)
-		if err != nil {
-			if git.IsErrorCode(err, git.ErrIterOver) {
-				break
-			}
-			return err
-		}
-
-		commit, err := repo.LookupCommit(oid)
-		if err != nil {
-			return err
-		}
-
-		lastTime = commit.Committer().When.UTC()
-		// git_print_commit(commit)
-		// fmt.Println(lastTime.Format("2006-01-02 15:04:05 MST"))
-
-		filemap, entries, err := get_file_entries(commit, diffOpts, filemap)
-
-		// fmt.Printf("%d/%d\n", current, total)
-		// fmt.Printf("tree %s\n", commit.TreeId())
-
-		count := len(entries)
-		if count > 0 {
-			// fmt.Println(count)
-			// fmt.Println(entries)
-			// fmt.Println(strings.Join(entries, "\n"))
-			err = touch_files(repo, entries, lastTime)
-			if err != nil {
-				return err
-			}
-			// go touch_files(repo, entries, lastTime)
-			// _ = lastTime
-			if bar != nil {
-				bar.Add(count)
-			}
-			current += count
-		}
-		if len(filemap) == 0 {
-			break
-		}
 	}
 	if len(filemap) != 0 {
 		fmt.Println("Warning: The final commit log for the file was not found.")
