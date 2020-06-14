@@ -104,11 +104,11 @@ func IsErrorCode(err error, errCode git.ErrorCode) bool {
 }
 
 func DiffToBuf(diff *git.Diff, format DiffFormat) ([]byte, error) {
-	if diff.ptr == nil {
+	if diff == nil {
 		return nil, git.ErrInvalid
 	}
 
-	if format == DiffFormatNameOnly {
+	if format != DiffFormatNameOnly {
 		return nil, git.ErrInvalid
 	} else {
 		files := ""
