@@ -88,7 +88,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 		if strings.Index(line, "committer") == 0 {
 			m := rcommitter.FindStringSubmatch(line)
 			unix, _ := strconv.ParseInt(m[1], 10, 64)
-			lastTimeUTC := time.Unix(unix, 0)
+			lastTimeUTC := time.Unix(unix, 0).UTC()
 			lastTime, _ = time.Parse("2006-01-02 15:04:05 -0700", lastTimeUTC.Format("2006-01-02 15:04:05")+" "+m[2])
 			hasLastTime = true
 		} else if strings.Index(line, "\x00") >= 0 {
