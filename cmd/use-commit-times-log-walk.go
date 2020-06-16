@@ -23,16 +23,15 @@ package cmd
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
@@ -55,7 +54,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	hasLastTime := false
 
 	// var wg sync.WaitGroup
-	// var mtx sync.Mutex
+	var mtx sync.Mutex
 	chtimes := func(files []string, lastTime time.Time) {
 		// defer mtx.Unlock()
 		count := 0
@@ -71,6 +70,9 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 					count++
 					delete(filemap, path)
 				}
+				// if _, err := os.Stat(filepath.Join(workdir, path)); err != nil {
+				// 	fmt.Println(path)
+				// }
 			}
 		}
 		if bar != nil {
@@ -78,6 +80,11 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 		}
 	}
 	onvisit := func(line string) bool {
+		mtx.Lock()
+		defer mtx.Unlock()
+		// if strings.Index(line, "tree") == 0 {
+		// 	fmt.Println(line)
+		// }
 		if strings.Index(line, "committer") == 0 {
 			m := rcommitter.FindStringSubmatch(line)
 			unix, _ := strconv.ParseInt(m[1], 10, 64)
@@ -87,18 +94,19 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 		} else if strings.Index(line, "\x00") >= 0 {
 			// fmt.Println(line)
 			line = rcommit.ReplaceAllString(line, "")
-			// mtx.Lock()
 			files := strings.Split(line, "\x00")
+			// for _, f := range files {
+			// 	fmt.Println(f)
+			// }
 			chtimes(files, lastTime)
 			if len(filemap) == 0 {
 				return true
 			}
-			// go chtimes(files, lastTime)
 		}
 		return false
 	}
 
-	args := []string{"log", "-m", "-r", "--name-only", "--no-color", "--pretty=raw", "-z"}
+	args := []string{"--no-pager", "-c", "diff.renames=false", "log", "-m", "-r", "--name-only", "--no-color", "--pretty=raw", "-z"}
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workdir
 
@@ -111,37 +119,42 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	streamReader := func(reader *bufio.Reader, outputChan chan string, doneChan chan bool) {
 		defer close(outputChan)
 		defer close(doneChan)
-		lastLine := ""
 		for true {
-			buf, isPrefix, err := reader.ReadLine()
+			// buf, isPrefix, err := reader.ReadLine()
+			// bb := bytes.NewBuffer(buf)
+			// if isPrefix {
+			// 	for {
+			// 		b, cont, err := reader.ReadLine()
+			// 		_, werr := bb.Write(b)
+			// 		if werr != nil {
+			// 			log.Fatal(err)
+			// 		}
+
+			// 		if err != nil {
+			// 			break
+			// 		}
+			// 		if !cont {
+			// 			break
+			// 		}
+			// 	}
+			// }
+			// line := string(bb.Bytes())
+			// if len(line) > 0 {
+			// 	outputChan <- line
+			// }
+
+			line, err := reader.ReadString('\n')
+			line = strings.TrimRight(line, "\n")
+			if len(line) > 0 {
+				outputChan <- line
+			}
+
 			if err != nil {
-				fmt.Println(err)
+				if err != io.EOF {
+					fmt.Println(err)
+				}
 				break
 			}
-
-			bb := bytes.NewBuffer(buf)
-			if isPrefix {
-				for {
-					b, cont, err := reader.ReadLine()
-					if err != nil {
-						if err != io.EOF {
-							fmt.Println(err)
-						}
-						break
-					}
-
-					_, err = bb.Write(b)
-					if err != nil {
-						log.Fatal(err)
-					}
-
-					if !cont {
-						break
-					}
-				}
-			}
-			lastLine = string(bb.Bytes())
-			outputChan <- lastLine
 		}
 		// for scanner.Scan() {
 		// 	outputChan <- scanner.Text()

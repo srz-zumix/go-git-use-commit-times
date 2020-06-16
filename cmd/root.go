@@ -91,14 +91,14 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		bylog, err := cmd.Flags().GetBool("use-gitlog")
+		use_libgit2, err := cmd.Flags().GetBool("libgit-walk")
 		if err != nil {
 			log.Fatal(err)
 		}
-		if bylog {
-			err = use_commit_times_bylog(".", progress)
-		} else {
+		if use_libgit2 {
 			err = use_commit_times(".", progress)
+		} else {
+			err = use_commit_times_bylog(".", progress)
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -127,7 +127,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar")
-	rootCmd.Flags().BoolP("use-gitlog", "l", false, "Get commit timestamp by git-log command")
+	rootCmd.Flags().BoolP("libgit-walk", "l", false, "Get commit timestamp by libgit2 rev walk")
 }
 
 // initConfig reads in config file and ENV variables if set.
