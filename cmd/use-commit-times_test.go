@@ -57,11 +57,12 @@ func TestMTimeGit2Go(t *testing.T) {
 		t.Fatalf("failed test %#v", err)
 	}
 	timeformat := "2006-01-02 15:04:05"
+	outformat := "2006-01-02 15:04:05 MST"
 	expect, _ := time.Parse(timeformat, "2020-06-12 06:03:11")
 	expect = expect.UTC()
 	actual := fileinfo.ModTime().UTC()
 	if expect != actual {
-		t.Fatalf("failed modtime %s vs %s", expect.Format(timeformat), actual.Format(timeformat))
+		t.Fatalf("failed modtime %s vs %s", expect.Format(outformat), actual.Format(outformat))
 	}
 }
 
@@ -90,10 +91,11 @@ func TestMTimeGitLog(t *testing.T) {
 		t.Fatalf("failed test %#v", err)
 	}
 	timeformat := "2006-01-02 15:04:05"
+	outformat := "2006-01-02 15:04:05 MST"
 	expect, _ := time.Parse(timeformat, "2020-06-12 06:03:11")
 	expect = expect.UTC()
 	actual := fileinfo.ModTime().UTC()
 	if expect != actual {
-		t.Fatalf("failed modtime %s vs %s", expect.Format(timeformat), actual.Format(timeformat))
+		t.Fatalf("failed modtime %s vs %s", expect.Format(outformat), actual.Format(outformat))
 	}
 }
