@@ -32,7 +32,7 @@ import (
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-func TestMTime(t *testing.T) {
+func TestMTimeGit2Go(t *testing.T) {
 	repo, err := git.OpenRepository("../")
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
@@ -49,6 +49,39 @@ func TestMTime(t *testing.T) {
 	os.Chtimes(testfile, now, now)
 
 	err = use_commit_times_rev_walk(repo, filemap, false)
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+	fileinfo, err := os.Stat(testfile)
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+	timeformat := "2006-01-02 15:04:05"
+	expect, _ := time.Parse(timeformat, "2020-06-12 06:03:11")
+	expect = expect.UTC()
+	actual := fileinfo.ModTime().UTC()
+	if expect != actual {
+		t.Fatalf("failed modtime %s vs %s", expect.Format(timeformat), actual.Format(timeformat))
+	}
+}
+
+func TestMTimeGitLog(t *testing.T) {
+	repo, err := git.OpenRepository("../")
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+	path := "tests/testfile"
+	files := []string{path}
+	filemap, err := get_fileidmap(repo, files)
+	if err != nil {
+		t.Fatalf("failed test %#v", err)
+	}
+
+	testfile := filepath.Join("..", path)
+	now := time.Now()
+	os.Chtimes(testfile, now, now)
+
+	err = use_commit_times_log_walk(repo, filemap, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

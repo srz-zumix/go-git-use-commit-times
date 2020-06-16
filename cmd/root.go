@@ -49,7 +49,28 @@ func use_commit_times(path string, progress bool) error {
 	}
 	// fmt.Println(strings.Join(files, "\n"))
 	err = use_commit_times_rev_walk(repo, filemap, progress)
-	// err = use_commit_times_tree_walk(repo, filemap, progress)
+	// err = use_commit_times_log_walk(repo, filemap, progress)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func use_commit_times_bylog(path string, progress bool) error {
+	repo, err := git.OpenRepository(path)
+	if err != nil {
+		return err
+	}
+	defer repo.Free()
+
+	// fmt.Println(repo)
+	filemap, err := ls_files(repo)
+	if err != nil {
+		return err
+	}
+	// fmt.Println(strings.Join(files, "\n"))
+	// err = use_commit_times_rev_walk(repo, filemap, progress)
+	err = use_commit_times_log_walk(repo, filemap, progress)
 	if err != nil {
 		return err
 	}
@@ -70,8 +91,15 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = use_commit_times(".", progress)
-		// err = use_commit_times_tree_walk(repo, filemap, progress)
+		bylog, err := cmd.Flags().GetBool("use-gitlog")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if bylog {
+			err = use_commit_times_bylog(".", progress)
+		} else {
+			err = use_commit_times(".", progress)
+		}
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -99,7 +127,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar")
-	rootCmd.Flags().BoolP("by-commit", "c", false, "Get timestamp by commit")
+	rootCmd.Flags().BoolP("use-gitlog", "l", false, "Get commit timestamp by git-log command")
 }
 
 // initConfig reads in config file and ENV variables if set.
