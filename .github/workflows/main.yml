@@ -45,22 +45,35 @@ jobs:
       run: |
         git clone https://github.com/srz-zumix/iutest.git iutestA
         git clone https://github.com/srz-zumix/iutest.git iutestB
+        git clone https://github.com/srz-zumix/iutest.git iutestC
     
+    - name: Git set file times (origin)
+      run: |
+        git clone https://gist.github.com/642fff6acb79b7a587fb3bce7ee1c9ef.git git-set-file-times-org
+        chmod +x ./git-set-file-times-org/git-set-file-times
+        cd iutestA
+        time ../git-set-file-times-org/git-set-file-times
+        cd ../
+
     - name: Git set file times
       run: |
+        perl -v
         git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
         chmod +x ./git-set-file-times/git-set-file-times
-        cd iutestA
+        cd iutestB
         time ../git-set-file-times/git-set-file-times
         cd ../
 
     - name: Git use commit times
       run: |
         go build -tags=${GO_TAGS} -v .
-        cd iutestB
+        cd iutestC
         time ../git-use-commit-times
         cd ../
 
-    - name: Compare
+    - name: Compare A/B
       run: ./tests/mtime-compare.sh iutestA iutestB
       
+    - name: Compare A/C
+      run: ./tests/mtime-compare.sh iutestA iutestC
+
