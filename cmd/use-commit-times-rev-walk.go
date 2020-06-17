@@ -33,16 +33,8 @@ import (
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-func filemap_to_entries(filemap map[string]struct{}) []string {
-	files := make([]string, len(filemap))
-	for k, _ := range filemap {
-		files = append(files, k)
-	}
-	return files
-}
-
-func touch_files(workdir string, entries []string, mtime time.Time) error {
-	for _, path := range entries {
+func touch_files(workdir string, filemap FileIdMap, mtime time.Time) error {
+	for path, _ := range filemap {
 		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
 		if err != nil {
 			return err
@@ -151,6 +143,7 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	var bar *progressbar.ProgressBar = nil
 	if isShowProgress {
 		bar = progressbar.Default(total)
+		defer bar.Finish()
 	}
 
 	workdir := repo.Workdir()
@@ -208,9 +201,6 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 		// if err != nil {
 		// 	return err
 		// }
-	}
-	if bar != nil {
-		bar.Finish()
 	}
 	return nil
 }
