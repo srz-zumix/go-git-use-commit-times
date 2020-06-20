@@ -29,7 +29,7 @@ import (
 
 func BenchmarkRunCommand(b *testing.B) {
 	b.ResetTimer()
-	err := use_commit_times("../", false)
+	err := use_commit_times("../", false, false)
 	if err != nil {
 		b.Fatalf("failed test %#v", err)
 	}

@@ -135,7 +135,7 @@ func get_file_entries_dummy(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 	return 0, nil
 }
 
-func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowProgress bool) error {
+func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose bool, isShowProgress bool) error {
 	// defer profile.Start(profile.ProfilePath(".")).Stop()
 
 	total := int64(len(filemap))
@@ -197,6 +197,11 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	}
 	if len(filemap) != 0 {
 		fmt.Println("Warning: The final commit log for the file was not found.")
+		if verbose {
+			for k, _ := range filemap {
+				fmt.Println(k)
+			}
+		}
 		// err = touch_files(repo, filemap_to_entries(filemap), lastTime)
 		// if err != nil {
 		// 	return err

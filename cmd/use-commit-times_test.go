@@ -48,7 +48,7 @@ func TestMTimeGit2Go(t *testing.T) {
 	now := time.Now()
 	os.Chtimes(testfile, now, now)
 
-	err = use_commit_times_rev_walk(repo, filemap, false)
+	err = use_commit_times_rev_walk(repo, filemap, false, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
@@ -82,7 +82,7 @@ func TestMTimeGitLog(t *testing.T) {
 	now := time.Now()
 	os.Chtimes(testfile, now, now)
 
-	err = use_commit_times_log_walk(repo, filemap, false)
+	err = use_commit_times_log_walk(repo, filemap, "", false, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

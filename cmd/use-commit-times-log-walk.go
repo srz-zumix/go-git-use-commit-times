@@ -38,7 +38,7 @@ import (
 	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
-func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowProgress bool) error {
+func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since string, verbose bool, isShowProgress bool) error {
 	total := int64(len(filemap))
 	var bar *progressbar.ProgressBar = nil
 	if isShowProgress {
@@ -66,13 +66,16 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 					// 	os.Chtimes(path, lastTime, lastTime)
 					// 	wg.Done()
 					// }(filepath.Join(workdir, path), lastTime)
-					os.Chtimes(filepath.Join(workdir, path), lastTime, lastTime)
-					count++
-					delete(filemap, path)
+					fullpath := filepath.Join(workdir, path)
+					stat, err := os.Stat(fullpath)
+					if err == nil {
+						if !stat.ModTime().Equal(lastTime) {
+							os.Chtimes(fullpath, lastTime, lastTime)
+						}
+						count++
+						delete(filemap, path)
+					}
 				}
-				// if _, err := os.Stat(filepath.Join(workdir, path)); err != nil {
-				// 	fmt.Println(path)
-				// }
 			}
 		}
 		if bar != nil {
@@ -108,6 +111,9 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 	}
 
 	args := []string{"--no-pager", "-c", "diff.renames=false", "log", "-m", "-r", "--name-only", "--no-color", "--pretty=raw", "-z"}
+	if since != "" {
+		args = append(args, "--since", since)
+	}
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workdir
 
@@ -189,8 +195,10 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, isShowPr
 
 	if len(filemap) != 0 {
 		fmt.Println("Warning: The final commit log for the file was not found.")
-		for k, _ := range filemap {
-			fmt.Println(k)
+		if verbose {
+			for k, _ := range filemap {
+				fmt.Println(k)
+			}
 		}
 		if hasLastTime {
 			err = touch_files(workdir, filemap, lastTime)
