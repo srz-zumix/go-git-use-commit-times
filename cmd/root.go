@@ -35,7 +35,7 @@ import (
 
 var cfgFile string
 
-func use_commit_times(path string, progress bool) error {
+func use_commit_times(path string, verbose bool, progress bool) error {
 	repo, err := git.OpenRepository(path)
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func use_commit_times(path string, progress bool) error {
 		return err
 	}
 	// fmt.Println(strings.Join(files, "\n"))
-	err = use_commit_times_rev_walk(repo, filemap, progress)
+	err = use_commit_times_rev_walk(repo, filemap, verbose, progress)
 	// err = use_commit_times_log_walk(repo, filemap, progress)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func use_commit_times(path string, progress bool) error {
 	return nil
 }
 
-func use_commit_times_bylog(path string, progress bool) error {
+func use_commit_times_bylog(path string, since string, verbose bool, progress bool) error {
 	repo, err := git.OpenRepository(path)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func use_commit_times_bylog(path string, progress bool) error {
 	}
 	// fmt.Println(strings.Join(files, "\n"))
 	// err = use_commit_times_rev_walk(repo, filemap, progress)
-	err = use_commit_times_log_walk(repo, filemap, progress)
+	err = use_commit_times_log_walk(repo, filemap, since, verbose, progress)
 	if err != nil {
 		return err
 	}
@@ -91,14 +91,29 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+		verbose, err := cmd.Flags().GetBool("verbose")
+		if err != nil {
+			log.Fatal(err)
+		}
 		use_libgit2, err := cmd.Flags().GetBool("libgit-walk")
 		if err != nil {
 			log.Fatal(err)
 		}
+		since, err := cmd.Flags().GetString("since")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if since == "" {
+			since, err = cmd.Flags().GetString("after")
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 		if use_libgit2 {
-			err = use_commit_times(".", progress)
+			err = use_commit_times(".", verbose, progress)
 		} else {
-			err = use_commit_times_bylog(".", progress)
+			err = use_commit_times_bylog(".", since, verbose, progress)
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -126,8 +141,11 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar")
-	rootCmd.Flags().BoolP("libgit-walk", "l", false, "Get commit timestamp by libgit2 rev walk")
+	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar.")
+	rootCmd.Flags().BoolP("libgit-walk", "l", false, "Get commit timestamp by libgit2 rev walk.")
+	rootCmd.Flags().BoolP("verbose", "v", false, "Verbose.")
+	rootCmd.Flags().String("since", "", "Commits more recent than a specific date.")
+	rootCmd.Flags().String("after", "", "Commits more recent than a specific date.")
 }
 
 // initConfig reads in config file and ENV variables if set.

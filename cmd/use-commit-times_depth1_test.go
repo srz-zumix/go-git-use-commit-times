@@ -64,7 +64,7 @@ func TestMTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
-	err = use_commit_times_rev_walk(repo, filemap, false)
+	err = use_commit_times_rev_walk(repo, filemap, false, false)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
