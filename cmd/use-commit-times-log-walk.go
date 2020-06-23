@@ -70,11 +70,14 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 					stat, err := os.Stat(fullpath)
 					if err == nil {
 						if !stat.ModTime().Equal(lastTime) {
+							// fmt.Println(stat.ModTime())
+							// fmt.Println(lastTime)
 							os.Chtimes(fullpath, lastTime, lastTime)
+							// fmt.Println(fullpath)
 						}
-						count++
-						delete(filemap, path)
 					}
+					count++
+					delete(filemap, path)
 				}
 			}
 		}
