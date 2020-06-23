@@ -35,9 +35,14 @@ import (
 
 func touch_files(workdir string, filemap FileIdMap, mtime time.Time) error {
 	for path, _ := range filemap {
-		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
-		if err != nil {
-			return err
+		fullpath := filepath.Join(workdir, path)
+		if stat, err := os.Stat(fullpath); !os.IsNotExist(err) {
+			if !stat.ModTime().Equal(mtime) {
+				err := os.Chtimes(fullpath, mtime, mtime)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
