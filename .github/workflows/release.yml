@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact to get url to upload to release
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v7
       with:
         name: artifact
 
@@ -144,7 +144,7 @@ jobs:
         GOOS=$goos GOARCH=$goarch go build -v -o dist/app .
         zip -j -r release dist
     - name: Download artifact to get url to upload to release
-      uses: actions/download-artifact@v1
+      uses: actions/download-artifact@v7
       with:
         name: artifact
 
