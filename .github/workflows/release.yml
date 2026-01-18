@@ -27,7 +27,7 @@ jobs:
         apt-get install -y -q libgit2-dev ca-certificates build-essential pkg-config
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
+      uses: actions/checkout@v6
 
     - name: Get dependencies
       run: go get -v -t -d ./...
@@ -79,7 +79,7 @@ jobs:
         url=$(cat artifact/url.txt)
         echo "##[set-output name=upload_url;]$url"
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
+      uses: actions/checkout@v6
 
     - name: Pack source code in zip file
       run: |
@@ -129,7 +129,7 @@ jobs:
         apt-get install -y -q libgit2-dev ca-certificates build-essential pkg-config
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
+      uses: actions/checkout@v6
 
     - name: Get dependencies
       run: go get -v -t -d ./...
