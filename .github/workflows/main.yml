@@ -9,13 +9,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        git2go_v: [v28, v29, v30]
-    container:
-      image: docker://srzzumix/libgit2:git2go-${{ matrix.git2go_v }}
-    env:
-      GO_TAGS: ${{ matrix.git2go_v }}
     steps:
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -25,23 +18,17 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v6
         with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Get dependencies
-        run: go get -tags=${GO_TAGS} -v -t -d ./...
-
-      # - name: Test code
-      #   run: go test -tags="${GO_TAGS} depth1" -v ./...
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v6
-        with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Test code (unshallow)
-        run: go test -tags=${GO_TAGS} -v ./...
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build
+        run: go build ./...
+
+      - name: Run tests
+        run: go test ./...
 
       - name: Test Repo Clone
         run: |
@@ -49,29 +36,31 @@ jobs:
           git clone https://github.com/srz-zumix/iutest.git iutestB
           git clone https://github.com/srz-zumix/iutest.git iutestC
       
-      - name: Git set file times (origin)
+      - name: Setup git set file times (origin)
         run: |
           git clone https://gist.github.com/642fff6acb79b7a587fb3bce7ee1c9ef.git git-set-file-times-org
           chmod +x ./git-set-file-times-org/git-set-file-times
-          cd iutestA
-          time ../git-set-file-times-org/git-set-file-times
-          cd ../
 
-      - name: Git set file times
+      - name: Git set file times (origin)
+        working-directory: iutestA
+        run: |
+          time ../git-set-file-times-org/git-set-file-times
+
+      - name: Setup git set file times
         run: |
           perl -v
           git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
           chmod +x ./git-set-file-times/git-set-file-times
-          cd iutestB
+
+      - name: Git set file times    
+        working-directory: iutestB
+        run: |
           time ../git-set-file-times/git-set-file-times
-          cd ../
 
       - name: Git use commit times
+        working-directory: iutestC
         run: |
-          go build -tags=${GO_TAGS} -v .
-          cd iutestC
           time ../git-use-commit-times
-          cd ../
 
       - name: Compare A/B
         run: ./tests/mtime-compare.sh iutestA iutestB
