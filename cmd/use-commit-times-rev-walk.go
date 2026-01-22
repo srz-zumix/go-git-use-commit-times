@@ -25,12 +25,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/schollz/progressbar/v3"
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
 )
 
 func touch_files(workdir string, filemap FileIdMap, mtime time.Time) error {
@@ -50,79 +50,50 @@ func touch_files(workdir string, filemap FileIdMap, mtime time.Time) error {
 
 type ChtimeCallback = func(path string, mtime time.Time) error
 
-func get_file_entries(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
-	tree, err := commit.Tree()
+func get_file_entries(commit *object.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
 	count := 0
+	tree, err := commit.Tree()
 	if err != nil {
 		return count, err
 	}
-	defer tree.Free()
 
-	for i := uint(0); i < commit.ParentCount(); i++ {
-		parent := commit.Parent(i)
-		parent_tree, err := parent.Tree()
-		if err != nil {
-			return count, err
-		}
-		diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, nil)
-		if err != nil {
-			return count, err
-		}
-		mtime := commit.Committer().When.UTC()
+	mtime := commit.Committer.When.UTC()
 
-		diff.ForEach(func(file git.DiffDelta, _ float64) (git.DiffForEachHunkCallback, error) {
-			switch file.Status {
-			case git.DeltaAdded:
-				fallthrough
-			case git.DeltaModified:
-				fallthrough
-			case git.DeltaRenamed:
-				fallthrough
-			case git.DeltaCopied:
-				fallthrough
-			case git.DeltaTypeChange:
-				path := file.NewFile.Path
-				if _, ok := filemap[path]; ok {
-					cb(path, mtime)
-					count++
-					delete(filemap, path)
-				}
+	// 親コミットがない場合（初回コミット）
+	if commit.NumParents() == 0 {
+		err = tree.Files().ForEach(func(f *object.File) error {
+			if _, ok := filemap[f.Name]; ok {
+				cb(f.Name, mtime)
+				count++
+				delete(filemap, f.Name)
 			}
-			return nil, nil
-		}, git.DiffDetailFiles)
-
-		diff.Free()
-		parent.Free()
-		parent_tree.Free()
-	}
-	return count, nil
-}
-
-func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
-	count := 0
-	tree, err := commit.Tree()
-	if err != nil {
+			return nil
+		})
 		return count, err
 	}
-	defer tree.Free()
-	mtime := commit.Committer().When.UTC()
 
-	for i := uint(0); i < commit.ParentCount(); i++ {
-		parent := commit.Parent(i)
-		parent_tree, err := parent.Tree()
+	// 各親コミットとの差分を確認
+	for i := 0; i < commit.NumParents(); i++ {
+		parent, err := commit.Parent(i)
 		if err != nil {
-			return count, err
-		}
-		diff, err := commit.Owner().DiffTreeToTree(parent_tree, tree, nil)
-		if err != nil {
-			return count, err
+			continue
 		}
 
-		buf, err := git.DiffToBuf(diff, git.DiffFormatNameOnly)
+		parentTree, err := parent.Tree()
 		if err != nil {
-			return count, err
+			continue
 		}
-		for _, path := range strings.Split(string(buf), "\n") {
+
+		changes, err := parentTree.Diff(tree)
+		if err != nil {
+			continue
+		}
+
+		for _, change := range changes {
+			path := change.To.Name
+			if path == "" {
+				path = change.From.Name
+			}
 			if _, ok := filemap[path]; ok {
 				cb(path, mtime)
 				count++
@@ -133,7 +104,11 @@ func get_file_entries_bybuf(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 	return count, nil
 }
 
-func get_file_entries_dummy(commit *git.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
+func get_file_entries_bybuf(commit *object.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
+	return get_file_entries(commit, filemap, cb)
+}
+
+func get_file_entries_dummy(commit *object.Commit, filemap FileIdMap, cb ChtimeCallback) (int, error) {
 	_ = commit
 	_ = filemap
 	_ = cb
@@ -141,31 +116,27 @@ func get_file_entries_dummy(commit *git.Commit, filemap FileIdMap, cb ChtimeCall
 }
 
 func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose bool, isShowProgress bool) error {
-	// defer profile.Start(profile.ProfilePath(".")).Stop()
-
 	total := int64(len(filemap))
-	current := 0
 	var bar *progressbar.ProgressBar = nil
 	if isShowProgress {
 		bar = progressbar.Default(total)
 		defer bar.Finish()
 	}
 
-	workdir := repo.Workdir()
-	rv, err := repo.Walk()
+	worktree, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
-	defer rv.Free()
+	workdir := worktree.Filesystem.Root()
 
-	rv.Sorting(git.SortTime)
-	err = rv.PushHead()
+	ref, err := repo.Head()
 	if err != nil {
 		return err
 	}
 
 	onchtimes := func(path string, mtime time.Time) error {
-		err := os.Chtimes(filepath.Join(workdir, path), mtime, mtime)
+		fullpath := filepath.Join(workdir, path)
+		err := os.Chtimes(fullpath, mtime, mtime)
 		if err != nil {
 			return err
 		}
@@ -173,33 +144,39 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose 
 	}
 
 	var m sync.Mutex
-
-	onvisit := func(commit *git.Commit) bool {
-		m.Lock()
-		if len(filemap) == 0 {
-			return false
-		}
-
-		go func(commit *git.Commit) {
-			defer m.Unlock()
-			count, err := get_file_entries_bybuf(commit, filemap, onchtimes)
-			if err != nil {
-				return
-			}
-			if count > 0 {
-				if bar != nil {
-					bar.Add(count)
-				}
-				current += count
-			}
-		}(commit)
-		return true
-	}
-
-	err = rv.Iterate(onvisit)
+	
+	// コミット履歴を時系列順に取得
+	commitIter, err := repo.Log(&git.LogOptions{
+		From: ref.Hash(),
+		Order: git.LogOrderCommitterTime,
+	})
 	if err != nil {
 		return err
 	}
+
+	err = commitIter.ForEach(func(commit *object.Commit) error {
+		m.Lock()
+		defer m.Unlock()
+		
+		if len(filemap) == 0 {
+			return fmt.Errorf("done") // ForEachを抜けるためのエラー
+		}
+
+		count, err := get_file_entries_bybuf(commit, filemap, onchtimes)
+		if err != nil {
+			return err
+		}
+		if count > 0 && bar != nil {
+			bar.Add(count)
+		}
+		return nil
+	})
+	
+	// "done"エラーは正常終了として扱う
+	if err != nil && err.Error() != "done" {
+		return err
+	}
+
 	if len(filemap) != 0 {
 		fmt.Println("Warning: The final commit log for the file was not found.")
 		if verbose {

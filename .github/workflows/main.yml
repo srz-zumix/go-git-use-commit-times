@@ -17,63 +17,65 @@ jobs:
     env:
       GO_TAGS: ${{ matrix.git2go_v }}
     steps:
-    - name: Set up Go 1.14
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.14
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
-      with:
-        fetch-depth: 1
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-    - name: Get dependencies
-      run: go get -tags=${GO_TAGS} -v -t -d ./...
+      - name: Get dependencies
+        run: go get -tags=${GO_TAGS} -v -t -d ./...
 
-    # - name: Test code
-    #   run: go test -tags="${GO_TAGS} depth1" -v ./...
+      # - name: Test code
+      #   run: go test -tags="${GO_TAGS} depth1" -v ./...
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v1
-      with:
-        fetch-depth: 0
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Test code (unshallow)
-      run: go test -tags=${GO_TAGS} -v ./...
+      - name: Test code (unshallow)
+        run: go test -tags=${GO_TAGS} -v ./...
 
-    - name: Test Repo Clone
-      run: |
-        git clone https://github.com/srz-zumix/iutest.git iutestA
-        git clone https://github.com/srz-zumix/iutest.git iutestB
-        git clone https://github.com/srz-zumix/iutest.git iutestC
-    
-    - name: Git set file times (origin)
-      run: |
-        git clone https://gist.github.com/642fff6acb79b7a587fb3bce7ee1c9ef.git git-set-file-times-org
-        chmod +x ./git-set-file-times-org/git-set-file-times
-        cd iutestA
-        time ../git-set-file-times-org/git-set-file-times
-        cd ../
-
-    - name: Git set file times
-      run: |
-        perl -v
-        git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
-        chmod +x ./git-set-file-times/git-set-file-times
-        cd iutestB
-        time ../git-set-file-times/git-set-file-times
-        cd ../
-
-    - name: Git use commit times
-      run: |
-        go build -tags=${GO_TAGS} -v .
-        cd iutestC
-        time ../git-use-commit-times
-        cd ../
-
-    - name: Compare A/B
-      run: ./tests/mtime-compare.sh iutestA iutestB
+      - name: Test Repo Clone
+        run: |
+          git clone https://github.com/srz-zumix/iutest.git iutestA
+          git clone https://github.com/srz-zumix/iutest.git iutestB
+          git clone https://github.com/srz-zumix/iutest.git iutestC
       
-    - name: Compare A/C
-      run: ./tests/mtime-compare.sh iutestA iutestC
+      - name: Git set file times (origin)
+        run: |
+          git clone https://gist.github.com/642fff6acb79b7a587fb3bce7ee1c9ef.git git-set-file-times-org
+          chmod +x ./git-set-file-times-org/git-set-file-times
+          cd iutestA
+          time ../git-set-file-times-org/git-set-file-times
+          cd ../
+
+      - name: Git set file times
+        run: |
+          perl -v
+          git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
+          chmod +x ./git-set-file-times/git-set-file-times
+          cd iutestB
+          time ../git-set-file-times/git-set-file-times
+          cd ../
+
+      - name: Git use commit times
+        run: |
+          go build -tags=${GO_TAGS} -v .
+          cd iutestC
+          time ../git-use-commit-times
+          cd ../
+
+      - name: Compare A/B
+        run: ./tests/mtime-compare.sh iutestA iutestB
+        
+      - name: Compare A/C
+        run: ./tests/mtime-compare.sh iutestA iutestC
 
