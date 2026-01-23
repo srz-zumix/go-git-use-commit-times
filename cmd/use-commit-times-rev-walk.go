@@ -59,7 +59,7 @@ func get_file_entries(commit *object.Commit, filemap FileIdMap, cb ChtimeCallbac
 
 	mtime := commit.Committer.When.UTC()
 
-	// 親コミットがない場合（初回コミット）
+	// Handle initial commit (no parents)
 	if commit.NumParents() == 0 {
 		err = tree.Files().ForEach(func(f *object.File) error {
 			if _, ok := filemap[f.Name]; ok {
@@ -72,7 +72,7 @@ func get_file_entries(commit *object.Commit, filemap FileIdMap, cb ChtimeCallbac
 		return count, err
 	}
 
-	// 各親コミットとの差分を確認
+	// Check diff with each parent commit
 	for i := 0; i < commit.NumParents(); i++ {
 		parent, err := commit.Parent(i)
 		if err != nil {
@@ -144,8 +144,8 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose 
 	}
 
 	var m sync.Mutex
-	
-	// コミット履歴を時系列順に取得
+
+	// Get commit history in chronological order
 	commitIter, err := repo.Log(&git.LogOptions{
 		From: ref.Hash(),
 		Order: git.LogOrderCommitterTime,
@@ -157,9 +157,9 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose 
 	err = commitIter.ForEach(func(commit *object.Commit) error {
 		m.Lock()
 		defer m.Unlock()
-		
+
 		if len(filemap) == 0 {
-			return fmt.Errorf("done") // ForEachを抜けるためのエラー
+			return fmt.Errorf("done") // Error to break out of ForEach
 		}
 
 		count, err := get_file_entries_bybuf(commit, filemap, onchtimes)
@@ -171,8 +171,8 @@ func use_commit_times_rev_walk(repo *git.Repository, filemap FileIdMap, verbose 
 		}
 		return nil
 	})
-	
-	// "done"エラーは正常終了として扱う
+
+	// Treat "done" error as normal completion
 	if err != nil && err.Error() != "done" {
 		return err
 	}

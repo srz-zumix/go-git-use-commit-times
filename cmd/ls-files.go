@@ -78,7 +78,6 @@ func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 	for _, path := range fileList {
 		file, err := tree.File(path)
 		if err != nil {
-			// より詳細なエラー情報を提供
 			return nil, fmt.Errorf("failed to find file '%s' in tree %s: %w", path, tree.Hash, err)
 		}
 		filemap[path] = file.Hash

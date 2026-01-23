@@ -74,8 +74,6 @@ func git_print_commit(commit *object.Commit) error {
 }
 
 func git_print_odb(repo *git.Repository) error {
-	// go-gitではODB全体を簡単にイテレートする方法がないため、
-	// コミット履歴を辿る方法で代替
 	ref, err := repo.Head()
 	if err != nil {
 		return err
@@ -94,6 +92,6 @@ func git_print_odb(repo *git.Repository) error {
 		git_print_tree_from_commit(commit)
 		return nil
 	})
-	
+
 	return err
 }

@@ -70,7 +70,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 		}
 	}
 
-	// コミット履歴を時系列順に取得
+	// Get commit history in chronological order
 	commitIter, err := repo.Log(&git.LogOptions{
 		From: ref.Hash(),
 		Order: git.LogOrderCommitterTime,
@@ -88,10 +88,10 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 		lastTime = mtime
 		hasLastTime = true
 
-		// since オプションのチェック
+		// Check since option
 		if since != "" {
-			// 簡易的な時刻パース - より厳密な実装が必要な場合は time.Parse を使用
-			// ここでは簡略化のため省略
+			// Simple time parsing - use time.Parse for more robust implementation
+			// Omitted here for simplification
 		}
 
 		tree, err := commit.Tree()
@@ -99,7 +99,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 			return err
 		}
 
-		// 親コミットがない場合（初回コミット）
+		// Handle initial commit (no parents)
 		if commit.NumParents() == 0 {
 			err = tree.Files().ForEach(func(f *object.File) error {
 				chtimes(f.Name, mtime)
@@ -108,7 +108,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 			return err
 		}
 
-		// 各親コミットとの差分を確認
+		// Check diff with each parent commit
 		for i := 0; i < commit.NumParents(); i++ {
 			parent, err := commit.Parent(i)
 			if err != nil {
@@ -137,7 +137,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 		return nil
 	})
 
-	// "done"エラーは正常終了として扱う
+	// Treat "done" error as normal completion
 	if err != nil && err.Error() != "done" {
 		return err
 	}
