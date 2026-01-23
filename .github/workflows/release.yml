@@ -16,7 +16,7 @@ on:
         required: true
       APP_PRIVATE_KEY:
         required: true
-        
+
 permissions: {}
 
 jobs:
@@ -50,6 +50,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: stable
+          cache: false
 
       - name: Create tag
         run: |
