@@ -22,6 +22,8 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -76,7 +78,8 @@ func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 	for _, path := range fileList {
 		file, err := tree.File(path)
 		if err != nil {
-			return nil, err
+			// より詳細なエラー情報を提供
+			return nil, fmt.Errorf("failed to find file '%s' in tree %s: %w", path, tree.Hash, err)
 		}
 		filemap[path] = file.Hash
 	}
