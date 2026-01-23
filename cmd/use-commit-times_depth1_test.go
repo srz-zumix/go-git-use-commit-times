@@ -1,3 +1,4 @@
+//go:build depth1
 // +build depth1
 
 /*
@@ -30,7 +31,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
+	git "github.com/libgit2/git2go/v34"
 )
 
 func captureStdout(f func()) string {

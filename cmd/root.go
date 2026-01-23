@@ -26,8 +26,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/spf13/cobra"
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
@@ -36,11 +36,10 @@ import (
 var cfgFile string
 
 func use_commit_times(path string, verbose bool, progress bool) error {
-	repo, err := git.OpenRepository(path)
+	repo, err := git.PlainOpen(path)
 	if err != nil {
 		return err
 	}
-	defer repo.Free()
 
 	// fmt.Println(repo)
 	filemap, err := ls_files(repo)
@@ -57,11 +56,10 @@ func use_commit_times(path string, verbose bool, progress bool) error {
 }
 
 func use_commit_times_bylog(path string, since string, verbose bool, progress bool) error {
-	repo, err := git.OpenRepository(path)
+	repo, err := git.PlainOpen(path)
 	if err != nil {
 		return err
 	}
-	defer repo.Free()
 
 	// fmt.Println(repo)
 	filemap, err := ls_files(repo)

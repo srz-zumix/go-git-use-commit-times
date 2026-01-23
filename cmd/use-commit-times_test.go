@@ -1,3 +1,4 @@
+//go:build !depth1
 // +build !depth1
 
 /*
@@ -29,11 +30,11 @@ import (
 	"testing"
 	"time"
 
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
+	"github.com/go-git/go-git/v5"
 )
 
 func TestMTimeGit2Go(t *testing.T) {
-	repo, err := git.OpenRepository("../")
+	repo, err := git.PlainOpen("../")
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
@@ -67,7 +68,7 @@ func TestMTimeGit2Go(t *testing.T) {
 }
 
 func TestMTimeGitLog(t *testing.T) {
-	repo, err := git.OpenRepository("../")
+	repo, err := git.PlainOpen("../")
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

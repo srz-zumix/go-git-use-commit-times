@@ -22,62 +22,63 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"path/filepath"
-
-	git "github.com/srz-zumix/git-use-commit-times/xgit"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-type FileIdMap = map[string]*git.Oid
+type FileIdMap = map[string]plumbing.Hash
 
 func ls_files(repo *git.Repository) (FileIdMap, error) {
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err
 	}
-	obj, err := ref.Peel(git.ObjectTree)
+
+	commit, err := repo.CommitObject(ref.Hash())
 	if err != nil {
 		return nil, err
 	}
 
-	tree, err := obj.AsTree()
+	tree, err := commit.Tree()
 	if err != nil {
 		return nil, err
 	}
-	files := make(FileIdMap, tree.EntryCount())
-	callback := func(e string, te *git.TreeEntry) int {
-		switch te.Filemode {
-		case git.FilemodeTree:
-		default:
-			path := filepath.Join(e, te.Name)
-			files[path] = te.Id
-		}
-		return 0
+
+	files := make(FileIdMap)
+	err = tree.Files().ForEach(func(f *object.File) error {
+		files[f.Name] = f.Hash
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	tree.Walk(callback)
 	return files, nil
 }
 
-func get_fileidmap(repo *git.Repository, files []string) (FileIdMap, error) {
+func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err
 	}
-	obj, err := ref.Peel(git.ObjectTree)
+
+	commit, err := repo.CommitObject(ref.Hash())
 	if err != nil {
 		return nil, err
 	}
 
-	tree, err := obj.AsTree()
+	tree, err := commit.Tree()
 	if err != nil {
 		return nil, err
 	}
-	filemap := make(FileIdMap, len(files))
-	for _, path := range files {
-		entry, err := tree.EntryByPath(path)
+
+	filemap := make(FileIdMap, len(fileList))
+	for _, path := range fileList {
+		file, err := tree.File(path)
 		if err != nil {
 			return nil, err
 		}
-		filemap[path] = entry.Id
+		filemap[path] = file.Hash
 	}
 	return filemap, nil
 }
