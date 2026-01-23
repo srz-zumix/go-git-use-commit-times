@@ -36,13 +36,13 @@ import (
 func TestMTimeGit2Go(t *testing.T) {
 	repo, err := git.PlainOpen("../")
 	if err != nil {
-		t.Fatalf("failed test %#v", err)
+		t.Fatalf("failed to open repository: %#v", err)
 	}
 	path := "tests/testfile"
 	files := []string{path}
 	filemap, err := get_fileidmap(repo, files)
 	if err != nil {
-		t.Fatalf("failed test %#v", err)
+		t.Fatalf("failed to get fileidmap for %s: %#v", path, err)
 	}
 
 	testfile := filepath.Join("..", path)
@@ -70,13 +70,13 @@ func TestMTimeGit2Go(t *testing.T) {
 func TestMTimeGitLog(t *testing.T) {
 	repo, err := git.PlainOpen("../")
 	if err != nil {
-		t.Fatalf("failed test %#v", err)
+		t.Fatalf("failed to open repository: %#v", err)
 	}
 	path := "tests/testfile"
 	files := []string{path}
 	filemap, err := get_fileidmap(repo, files)
 	if err != nil {
-		t.Fatalf("failed test %#v", err)
+		t.Fatalf("failed to get fileidmap for %s: %#v", path, err)
 	}
 
 	testfile := filepath.Join("..", path)
