@@ -1,24 +1,3 @@
-/*
-Copyright © 2020 srz_zumix <https://github.com/srz-zumix>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
@@ -32,7 +11,8 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since string, verbose bool, isShowProgress bool) error {
+func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time, isShowProgress bool) error {
+	Logger.Info("Starting commit time update (log walk)", "files", len(filemap), "since", since, "until", until)
 	total := int64(len(filemap))
 	var bar *progressbar.ProgressBar = nil
 	if isShowProgress {
@@ -73,7 +53,9 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 	// Get commit history in chronological order
 	commitIter, err := repo.Log(&git.LogOptions{
 		From: ref.Hash(),
-		Order: git.LogOrderCommitterTime,
+		// Order: git.LogOrderCommitterTime,
+		Since: since,
+		Until: until,
 	})
 	if err != nil {
 		return err
@@ -81,18 +63,14 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 
 	err = commitIter.ForEach(func(commit *object.Commit) error {
 		if len(filemap) == 0 {
+			Logger.Debug("All files processed, stopping iteration")
 			return fmt.Errorf("done")
 		}
 
+		Logger.Debug("Processing commit", "hash", commit.Hash, "remaining", len(filemap))
 		mtime := commit.Committer.When
 		lastTime = mtime
 		hasLastTime = true
-
-		// Check since option
-		if since != "" {
-			// Simple time parsing - use time.Parse for more robust implementation
-			// Omitted here for simplification
-		}
 
 		tree, err := commit.Tree()
 		if err != nil {
@@ -139,15 +117,13 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since st
 
 	// Treat "done" error as normal completion
 	if err != nil && err.Error() != "done" {
-		return err
+		Logger.Warn("Error during commit iteration", "error", err)
 	}
 
 	if len(filemap) != 0 {
-		fmt.Println("Warning: The final commit log for the file was not found.")
-		if verbose {
-			for k := range filemap {
-				fmt.Println(k)
-			}
+		Logger.Warn("Some files not found in commit history", "count", len(filemap))
+		for k := range filemap {
+			Logger.Warn("File not found", "path", k)
 		}
 		if hasLastTime {
 			for path := range filemap {
