@@ -29,7 +29,7 @@ jobs:
         run: go build ./...
 
       - name: Run tests (depth1)
-        run: go test ./... --tag=depth1
+        run: go test -tags=depth1 ./...
 
       - name: Checkout code
         uses: actions/checkout@v5

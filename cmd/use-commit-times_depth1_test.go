@@ -1,4 +1,4 @@
-//go:build !depth1
+//go:build depth1
 
 package cmd
 
