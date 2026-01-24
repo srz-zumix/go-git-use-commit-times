@@ -53,7 +53,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 	// Get commit history in chronological order
 	commitIter, err := repo.Log(&git.LogOptions{
 		From: ref.Hash(),
-		// Order: git.LogOrderCommitterTime,
+		Order: git.LogOrderCommitterTime,
 		Since: since,
 		Until: until,
 	})
