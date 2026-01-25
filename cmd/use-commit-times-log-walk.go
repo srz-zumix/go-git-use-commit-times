@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/schollz/progressbar/v3"
 )
 
 func chtimes(workdir string, path string, mtime time.Time) error {
@@ -22,15 +21,7 @@ func chtimes(workdir string, path string, mtime time.Time) error {
 	return nil
 }
 
-func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time, isShowProgress bool) error {
-	Logger.Info("Starting commit time update (log walk)", "files", len(filemap), "since", since, "until", until)
-	total := int64(len(filemap))
-	var bar *progressbar.ProgressBar = nil
-	if isShowProgress {
-		bar = progressbar.Default(total)
-		defer bar.Finish()
-	}
-
+func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time) error {
 	worktree, err := repo.Worktree()
 	if err != nil {
 		return err
@@ -56,9 +47,6 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 				return err
 			}
 			delete(filemap, path)
-			if bar != nil {
-				bar.Add(1)
-			}
 		}
 			return nil
 	}
@@ -76,11 +64,9 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 
 	err = commitIter.ForEach(func(commit *object.Commit) error {
 		if len(filemap) == 0 {
-			Logger.Debug("All files processed, stopping iteration")
 			return fmt.Errorf("done")
 		}
 
-		Logger.Debug("Processing commit", "hash", commit.Hash, "remaining", len(filemap))
 		mtime := commit.Committer.When
 		lastTime = mtime
 

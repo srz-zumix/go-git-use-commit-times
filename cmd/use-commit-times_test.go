@@ -27,7 +27,7 @@ func TestMTimeGitLog(t *testing.T) {
 	now := time.Now()
 	os.Chtimes(testfile, now, now)
 
-	err = use_commit_times_log_walk(repo, filemap, nil, nil, false)
+	err = use_commit_times_log_walk(repo, filemap, nil, nil)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
