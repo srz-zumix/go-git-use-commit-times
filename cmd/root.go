@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/spf13/cobra"
@@ -30,11 +31,25 @@ func use_commit_times(path string) error {
 	if err != nil {
 		return err
 	}
-	err = use_commit_times_walk(workdir, filemap, nil, nil)
-	if err != nil {
-		return err
+	
+	// Parse time parameters
+	var sinceTime, untilTime *time.Time
+	if since != "" {
+		t, err := time.Parse("2006-01-02", since)
+		if err != nil {
+			return fmt.Errorf("invalid since date format: %w", err)
+		}
+		sinceTime = &t
 	}
-	return nil
+	if until != "" {
+		t, err := time.Parse("2006-01-02", until)
+		if err != nil {
+			return fmt.Errorf("invalid until date format: %w", err)
+		}
+		untilTime = &t
+	}
+	
+	return use_commit_times_walk(workdir, filemap, sinceTime, untilTime)
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -51,11 +66,7 @@ var rootCmd = &cobra.Command{
 		SetLogLevel(logLevel)
 
 		// Execute appropriate function based on flags
-		err := use_commit_times(".")
-		if err != nil {
-			return err
-		}
-		return nil
+		return use_commit_times(".")
 	},
 }
 
