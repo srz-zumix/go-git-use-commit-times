@@ -32,3 +32,4 @@ go.work.sum
 
 git-use-commit-times
 *.pprof
+tmp/

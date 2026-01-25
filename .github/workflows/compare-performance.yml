@@ -1,4 +1,4 @@
-name: GitHub Actions
+name: Compare Performance
 on:
   pull_request:
   push:
@@ -7,15 +7,15 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: compare performance
     runs-on: ubuntu-latest
     steps:
-       - name: Check out code into the Go module directory
+      - name: Check out code into the Go module directory
         uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-     - name: Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -24,17 +24,14 @@ jobs:
         run: go mod tidy
 
       - name: Build
-        run: go build ./...
-
-      - name: Run tests
-        run: go test ./...
+        run: go build -o git-use-commit-times
 
       - name: Test Repo Clone
         run: |
           git clone https://github.com/srz-zumix/iutest.git iutestA
           git clone https://github.com/srz-zumix/iutest.git iutestB
           git clone https://github.com/srz-zumix/iutest.git iutestC
-      
+
       - name: Setup git set file times (origin)
         run: |
           git clone https://gist.github.com/642fff6acb79b7a587fb3bce7ee1c9ef.git git-set-file-times-org
@@ -51,7 +48,7 @@ jobs:
           git clone https://gist.github.com/0a526e8f9182549cbdb6d880a4477ff0.git git-set-file-times
           chmod +x ./git-set-file-times/git-set-file-times
 
-      - name: Git set file times    
+      - name: Git set file times
         working-directory: iutestB
         run: |
           time ../git-set-file-times/git-set-file-times
@@ -63,7 +60,7 @@ jobs:
 
       - name: Compare A/B
         run: ./tests/mtime-compare.sh iutestA iutestB
-        
+
       - name: Compare A/C
         run: ./tests/mtime-compare.sh iutestA iutestC
 

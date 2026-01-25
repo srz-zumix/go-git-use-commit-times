@@ -1,0 +1,8 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        actions/*: any
+  secrets-inherit:
+    ignore:
+      - .github/workflows/release-drafter.yml

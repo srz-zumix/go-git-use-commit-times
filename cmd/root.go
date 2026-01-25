@@ -1,29 +1,7 @@
-/*
-Copyright © 2020 srz_zumix <https://github.com/srz-zumix>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/go-git/go-git/v5"
@@ -33,42 +11,30 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile    string
+	progress   bool
+	logLevel   string
+	since      string
+	until      string
+)
 
-func use_commit_times(path string, verbose bool, progress bool) error {
+func use_commit_times(path string) error {
+	Logger.Info("Opening repository (log walk)", "path", path, "since", since)
 	repo, err := git.PlainOpen(path)
 	if err != nil {
 		return err
 	}
 
-	// fmt.Println(repo)
+	Logger.Debug("Listing files in repository")
 	filemap, err := ls_files(repo)
 	if err != nil {
 		return err
 	}
-	// fmt.Println(strings.Join(files, "\n"))
-	err = use_commit_times_rev_walk(repo, filemap, verbose, progress)
-	// err = use_commit_times_log_walk(repo, filemap, progress)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func use_commit_times_bylog(path string, since string, verbose bool, progress bool) error {
-	repo, err := git.PlainOpen(path)
-	if err != nil {
-		return err
-	}
-
-	// fmt.Println(repo)
-	filemap, err := ls_files(repo)
-	if err != nil {
-		return err
-	}
+	Logger.Info("Found files", "count", len(filemap))
 	// fmt.Println(strings.Join(files, "\n"))
 	// err = use_commit_times_rev_walk(repo, filemap, progress)
-	err = use_commit_times_log_walk(repo, filemap, since, verbose, progress)
+	err = use_commit_times_log_walk(repo, filemap, nil, nil, progress)
 	if err != nil {
 		return err
 	}
@@ -84,38 +50,16 @@ var rootCmd = &cobra.Command{
 	`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
-		progress, err := cmd.Flags().GetBool("progress")
-		if err != nil {
-			log.Fatal(err)
-		}
-		verbose, err := cmd.Flags().GetBool("verbose")
-		if err != nil {
-			log.Fatal(err)
-		}
-		use_libgit2, err := cmd.Flags().GetBool("libgit-walk")
-		if err != nil {
-			log.Fatal(err)
-		}
-		since, err := cmd.Flags().GetString("since")
-		if err != nil {
-			log.Fatal(err)
-		}
-		if since == "" {
-			since, err = cmd.Flags().GetString("after")
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize logger with log level
+		SetLogLevel(logLevel)
 
-		if use_libgit2 {
-			err = use_commit_times(".", verbose, progress)
-		} else {
-			err = use_commit_times_bylog(".", since, verbose, progress)
-		}
+		// Execute appropriate function based on flags
+		err := use_commit_times(".")
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
+		return nil
 	},
 }
 
@@ -139,11 +83,10 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("progress", "p", false, "Show progressbar.")
-	rootCmd.Flags().BoolP("libgit-walk", "l", false, "Get commit timestamp by libgit2 rev walk.")
-	rootCmd.Flags().BoolP("verbose", "v", false, "Verbose.")
-	rootCmd.Flags().String("since", "", "Commits more recent than a specific date.")
-	rootCmd.Flags().String("after", "", "Commits more recent than a specific date.")
+	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progressbar.")
+	rootCmd.Flags().StringVar(&logLevel, "log-level", "error", "Log level (debug, info, warn, error).")
+	rootCmd.Flags().StringVar(&since, "since", "", "Only consider commits after this date (e.g., '2023-01-02').")
+	rootCmd.Flags().StringVar(&until, "until", "", "Only consider commits before this date (e.g., '2023-01-02').")
 }
 
 // initConfig reads in config file and ENV variables if set.
