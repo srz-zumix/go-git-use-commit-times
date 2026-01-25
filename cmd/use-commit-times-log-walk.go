@@ -11,6 +11,17 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+func chtimes(workdir string, path string, mtime time.Time) error {
+	fullpath := filepath.Join(workdir, path)
+	stat, err := os.Stat(fullpath)
+	if err == nil {
+		if !stat.ModTime().Equal(mtime) {
+			return os.Chtimes(fullpath, mtime, mtime)
+		}
+	}
+	return nil
+}
+
 func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time, isShowProgress bool) error {
 	Logger.Info("Starting commit time update (log walk)", "files", len(filemap), "since", since, "until", until)
 	total := int64(len(filemap))
@@ -38,20 +49,18 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 	}
 	lastTime := headCommit.Committer.When
 
-	chtimes := func(path string, mtime time.Time) {
+	on_chtimes := func(path string, mtime time.Time) error {
 		if _, ok := filemap[path]; ok {
-			fullpath := filepath.Join(workdir, path)
-			stat, err := os.Stat(fullpath)
-			if err == nil {
-				if !stat.ModTime().Equal(mtime) {
-					os.Chtimes(fullpath, mtime, mtime)
-				}
+			err := chtimes(workdir, path, mtime)
+			if err != nil {
+				return err
 			}
 			delete(filemap, path)
 			if bar != nil {
 				bar.Add(1)
 			}
 		}
+			return nil
 	}
 
 	// Get commit history in chronological order
@@ -83,8 +92,7 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 		// Handle initial commit (no parents)
 		if commit.NumParents() == 0 {
 			err = tree.Files().ForEach(func(f *object.File) error {
-				chtimes(f.Name, mtime)
-				return nil
+				return on_chtimes(f.Name, mtime)
 			})
 			return err
 		}
@@ -111,7 +119,10 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 				if path == "" {
 					path = change.From.Name
 				}
-				chtimes(path, mtime)
+				err := on_chtimes(path, mtime)
+				if err != nil {
+					return err
+				}
 			}
 		}
 
@@ -130,12 +141,9 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 		}
 		// Use lastTime (from HEAD) for remaining files
 		for path := range filemap {
-			fullpath := filepath.Join(workdir, path)
-			stat, err := os.Stat(fullpath)
-			if err == nil {
-				if !stat.ModTime().Equal(lastTime) {
-					os.Chtimes(fullpath, lastTime, lastTime)
-				}
+			err := on_chtimes(path, lastTime)
+			if err != nil {
+				return err
 			}
 		}
 	}
