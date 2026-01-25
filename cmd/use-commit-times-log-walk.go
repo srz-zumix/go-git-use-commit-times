@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,19 +96,20 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 				continue
 			}
 
-			changes, err := parentTree.Diff(tree)
+			changes, err := object.DiffTreeWithOptions(context.Background(), parentTree, tree, &object.DiffTreeOptions{
+				DetectRenames: false,
+			})
 			if err != nil {
 				continue
 			}
 
 			for _, change := range changes {
-				path := change.To.Name
-				if path == "" {
-					path = change.From.Name
-				}
-				err := on_chtimes(path, mtime)
-				if err != nil {
-					return err
+				// Process only additions and modifications (not deletions)
+				if change.To.Name != "" {
+					err := on_chtimes(change.To.Name, mtime)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
