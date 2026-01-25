@@ -3,14 +3,12 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -46,55 +44,72 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 		return fmt.Errorf("failed to execute git log: %w", err)
 	}
 
-	// Parse git log output
-	scanner := bufio.NewScanner(bytes.NewReader(output))
-	scanner.Split(scanLines)
-
+	// Parse git log output more efficiently
 	var commitTime time.Time
 	var lastCommitTime time.Time
+	data := output
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	// Pre-allocate batch for file updates
+	filesToUpdate := make([]string, 0, 100)
 
-		// Parse committer line to extract timestamp
-		if strings.HasPrefix(line, "committer ") {
-			timestamp, err := parseCommitterTimestamp(line)
-			if err == nil {
-				commitTime = timestamp
-				lastCommitTime = timestamp
+	for len(data) > 0 && len(filemap) > 0 {
+		// Find next newline
+		nl := bytes.IndexByte(data, '\n')
+		if nl < 0 {
+			break
+		}
+
+		line := data[:nl]
+		data = data[nl+1:]
+
+		// Fast check for committer line (starts with 'c')
+		if len(line) > 10 && line[0] == 'c' && bytes.HasPrefix(line, []byte("committer ")) {
+			// Parse timestamp directly without string conversion
+			if ts := parseCommitterTimestampFast(line); ts > 0 {
+				commitTime = time.Unix(ts, 0)
+				lastCommitTime = commitTime
 			}
-		} else if strings.Contains(line, "\x00\x00commit ") || strings.HasSuffix(line, "\x00") {
-			// Process files that changed in this commit
-			processFiles := strings.TrimSuffix(line, "\x00")
-			processFiles = strings.Split(processFiles, "\x00\x00commit ")[0]
+		} else if len(line) > 0 {
+			// Check if line contains file names (has null bytes or ends with null)
+			if bytes.Contains(line, []byte("\x00\x00commit ")) || (len(line) > 0 && line[len(line)-1] == 0) {
+				// Process files in this line
+				filesToUpdate = filesToUpdate[:0] // Reset slice
 
-			if processFiles != "" {
-				files := strings.Split(processFiles, "\x00")
-				for _, file := range files {
-					if file == "" {
-						continue
+				// Remove trailing null
+				if len(line) > 0 && line[len(line)-1] == 0 {
+					line = line[:len(line)-1]
+				}
+
+				// Split by \x00\x00commit if present
+				if idx := bytes.Index(line, []byte("\x00\x00commit ")); idx >= 0 {
+					line = line[:idx]
+				}
+
+				// Split by null bytes and process files
+				start := 0
+				for i := 0; i <= len(line); i++ {
+					if i == len(line) || line[i] == 0 {
+						if i > start {
+							filename := string(line[start:i])
+							if _, exists := filemap[filename]; exists {
+								filesToUpdate = append(filesToUpdate, filename)
+							}
+						}
+						start = i + 1
 					}
+				}
 
-					// Only process files that are in our filemap
-					if _, exists := filemap[file]; exists {
+				// Batch update files
+				if len(filesToUpdate) > 0 {
+					for _, file := range filesToUpdate {
 						fullpath := filepath.Join(workdir, file)
-						err := os.Chtimes(fullpath, commitTime, commitTime)
-						if err == nil {
+						if err := os.Chtimes(fullpath, commitTime, commitTime); err == nil {
 							delete(filemap, file)
 						}
 					}
 				}
 			}
-
-			// Stop if all files have been processed
-			if len(filemap) == 0 {
-				break
-			}
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading git log output: %w", err)
 	}
 
 	// Handle remaining files that weren't found in the commit history
@@ -115,41 +130,26 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 	return nil
 }
 
-// parseCommitterTimestamp extracts the Unix timestamp from a committer line
+// parseCommitterTimestampFast extracts Unix timestamp from committer line using byte operations
 // Expected format: "committer Name <email> timestamp timezone"
-func parseCommitterTimestamp(line string) (time.Time, error) {
-	parts := strings.Fields(line)
-	if len(parts) < 3 {
-		return time.Time{}, fmt.Errorf("invalid committer line format")
+func parseCommitterTimestampFast(line []byte) int64 {
+	// Find the last two space-separated fields
+	lastSpace := bytes.LastIndexByte(line, ' ')
+	if lastSpace < 0 {
+		return 0
 	}
 
-	// The timestamp is the second-to-last field
-	timestampStr := parts[len(parts)-2]
-	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	secondLastSpace := bytes.LastIndexByte(line[:lastSpace], ' ')
+	if secondLastSpace < 0 {
+		return 0
+	}
+
+	// Parse the timestamp (second-to-last field)
+	timestampBytes := line[secondLastSpace+1 : lastSpace]
+	timestamp, err := strconv.ParseInt(string(timestampBytes), 10, 64)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to parse timestamp: %w", err)
+		return 0
 	}
 
-	return time.Unix(timestamp, 0), nil
-}
-
-// scanLines is a custom split function for bufio.Scanner that splits on newlines
-// but preserves null bytes within lines
-func scanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-
-	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		// We have a full newline-terminated line.
-		return i + 1, data[0:i], nil
-	}
-
-	// If we're at EOF, we have a final, non-terminated line. Return it.
-	if atEOF {
-		return len(data), data, nil
-	}
-
-	// Request more data.
-	return 0, nil, nil
+	return timestamp
 }
