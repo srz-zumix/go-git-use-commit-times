@@ -15,13 +15,19 @@ func TestMTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
+	worktree, err := repo.Worktree()
+	if err != nil {
+		t.Fatalf("failed to get worktree: %#v", err)
+	}
+	workdir := worktree.Filesystem.Root()
+
 	path := "tests/testfile"
 	files := []string{path}
-	filemap, err := get_fileidmap(repo, files)
+	filemap, err := get_fileidmap(workdir, files)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
-	err = use_commit_times_walk(repo, filemap, nil, nil)
+	err = use_commit_times_walk(workdir, filemap, nil, nil)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}

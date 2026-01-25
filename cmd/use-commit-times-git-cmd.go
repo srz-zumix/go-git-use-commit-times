@@ -43,6 +43,10 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 	// Collect files to update per commit to reduce syscalls
 	filesToUpdate := make([]string, 0, 100)
 
+	// Pre-compile patterns for faster matching
+	committerPrefix := []byte("committer ")
+	nullNull := []byte("\x00\x00")
+
 	for len(data) > 0 && len(filemap) > 0 {
 		// Find next newline
 		nl := bytes.IndexByte(data, '\n')
@@ -54,50 +58,50 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 		data = data[nl+1:]
 
 		// Fast check for committer line (starts with 'c')
-		if len(line) > 10 && line[0] == 'c' && bytes.HasPrefix(line, []byte("committer ")) {
+		if len(line) > 10 && line[0] == 'c' && bytes.HasPrefix(line, committerPrefix) {
 			// Parse timestamp directly without string conversion
 			if ts := parseCommitterTimestampFast(line); ts > 0 {
 				commitTime = time.Unix(ts, 0)
 				lastCommitTime = commitTime
 			}
-		} else if len(line) > 0 {
-			// Check if line contains file names (has null bytes or ends with null)
-			if bytes.Contains(line, []byte("\x00\x00commit ")) || (len(line) > 0 && line[len(line)-1] == 0) {
-				// Process files in this line
-				filesToUpdate = filesToUpdate[:0] // Reset slice
+		} else if len(line) > 0 && (line[len(line)-1] == 0 || bytes.Contains(line, nullNull)) {
+			// This line contains file names
+			filesToUpdate = filesToUpdate[:0] // Reset slice
 
-				// Remove trailing null
-				if len(line) > 0 && line[len(line)-1] == 0 {
-					line = line[:len(line)-1]
+			// Remove trailing null
+			if line[len(line)-1] == 0 {
+				line = line[:len(line)-1]
+			}
+
+			// Split by \x00\x00commit if present
+			if idx := bytes.Index(line, nullNull); idx >= 0 {
+				line = line[:idx]
+			}
+
+			// Process null-separated filenames more efficiently
+			if len(line) == 0 {
+				continue
+			}
+
+			// Split by null bytes using bytes.Split for better performance
+			parts := bytes.Split(line, []byte{0})
+			for _, part := range parts {
+				if len(part) == 0 {
+					continue
 				}
-
-				// Split by \x00\x00commit if present
-				if idx := bytes.Index(line, []byte("\x00\x00commit ")); idx >= 0 {
-					line = line[:idx]
+				filename := string(part)
+				if _, exists := filemap[filename]; exists {
+					filesToUpdate = append(filesToUpdate, filename)
 				}
+			}
 
-				// Split by null bytes and collect files to update
-				start := 0
-				for i := 0; i <= len(line); i++ {
-					if i == len(line) || line[i] == 0 {
-						if i > start {
-							filename := string(line[start:i])
-							if _, exists := filemap[filename]; exists {
-								filesToUpdate = append(filesToUpdate, filename)
-							}
-						}
-						start = i + 1
-					}
-				}
-
-				// Update all files from this commit at once
-				if len(filesToUpdate) > 0 {
-					for _, file := range filesToUpdate {
-						fullpath := filemap[file]
-						// Only update if file hasn't been modified or doesn't exist
-						if err := os.Chtimes(fullpath, commitTime, commitTime); err == nil {
-							delete(filemap, file)
-						}
+			// Update all files from this commit at once
+			if len(filesToUpdate) > 0 {
+				for _, file := range filesToUpdate {
+					fullpath := filemap[file]
+					// Only update if file hasn't been modified or doesn't exist
+					if err := os.Chtimes(fullpath, commitTime, commitTime); err == nil {
+						delete(filemap, file)
 					}
 				}
 			}
@@ -112,7 +116,10 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 		for file := range filemap {
 			Logger.Warn("File not found", "path", file)
 			if fullpath, exists := filemap[file]; exists {
-				os.Chtimes(fullpath, lastCommitTime, lastCommitTime)
+				err := os.Chtimes(fullpath, lastCommitTime, lastCommitTime)
+				if err != nil {
+					Logger.Error("Failed to update timestamp for file", "path", fullpath, "error", err)
+				}
 			}
 		}
 	}
