@@ -1,14 +1,15 @@
+//go:build usegogit
+
 package cmd
 
 import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-type FileIdMap = map[string]plumbing.Hash
+type FileIdMap = map[string]any
 
 func ls_files(repo *git.Repository) (FileIdMap, error) {
 	ref, err := repo.Head()
