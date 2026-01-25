@@ -10,10 +10,9 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 )
 
-type FileIdMap = map[string]plumbing.Hash
+type FileIdMap = map[string]struct{}
 
 func ls_files(repo *git.Repository) (FileIdMap, error) {
 	worktree, err := repo.Worktree()
@@ -40,7 +39,7 @@ func ls_files(repo *git.Repository) (FileIdMap, error) {
 		filename := scanner.Text()
 		if filename != "" {
 			// Use empty hash as we only need the filename for this implementation
-			files[filename] = plumbing.ZeroHash
+			files[filename] = struct{}{}
 		}
 	}
 
@@ -95,7 +94,7 @@ func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 		}
 
 		// Use empty hash as we only need the filename for this implementation
-		filemap[path] = plumbing.ZeroHash
+		filemap[path] = struct{}{}
 	}
 
 	return filemap, nil
