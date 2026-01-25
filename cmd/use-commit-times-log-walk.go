@@ -31,8 +31,12 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 		return err
 	}
 
-	var lastTime time.Time
-	hasLastTime := false
+	// Get lastTime from HEAD commit
+	headCommit, err := repo.CommitObject(ref.Hash())
+	if err != nil {
+		return err
+	}
+	lastTime := headCommit.Committer.When
 
 	chtimes := func(path string, mtime time.Time) {
 		if _, ok := filemap[path]; ok {
@@ -70,7 +74,6 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 		Logger.Debug("Processing commit", "hash", commit.Hash, "remaining", len(filemap))
 		mtime := commit.Committer.When
 		lastTime = mtime
-		hasLastTime = true
 
 		tree, err := commit.Tree()
 		if err != nil {
@@ -125,14 +128,13 @@ func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *t
 		for k := range filemap {
 			Logger.Warn("File not found", "path", k)
 		}
-		if hasLastTime {
-			for path := range filemap {
-				fullpath := filepath.Join(workdir, path)
-				stat, err := os.Stat(fullpath)
-				if err == nil {
-					if !stat.ModTime().Equal(lastTime) {
-						os.Chtimes(fullpath, lastTime, lastTime)
-					}
+		// Use lastTime (from HEAD) for remaining files
+		for path := range filemap {
+			fullpath := filepath.Join(workdir, path)
+			stat, err := os.Stat(fullpath)
+			if err == nil {
+				if !stat.ModTime().Equal(lastTime) {
+					os.Chtimes(fullpath, lastTime, lastTime)
 				}
 			}
 		}
