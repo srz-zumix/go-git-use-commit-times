@@ -1,3 +1,5 @@
+//go:build usegogit
+
 package cmd
 
 import (
@@ -22,7 +24,7 @@ func chtimes(workdir string, path string, mtime time.Time) error {
 	return nil
 }
 
-func use_commit_times_log_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time) error {
+func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time) error {
 	worktree, err := repo.Worktree()
 	if err != nil {
 		return err

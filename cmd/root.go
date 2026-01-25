@@ -26,7 +26,7 @@ func use_commit_times(path string) error {
 	if err != nil {
 		return err
 	}
-	err = use_commit_times_log_walk(repo, filemap, nil, nil)
+	err = use_commit_times_walk(repo, filemap, nil, nil)
 	if err != nil {
 		return err
 	}

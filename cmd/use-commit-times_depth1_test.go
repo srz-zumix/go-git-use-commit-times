@@ -21,7 +21,7 @@ func TestMTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
-	err = use_commit_times_log_walk(repo, filemap, nil, nil, false)
+	err = use_commit_times_walk(repo, filemap, nil, nil)
 	if err != nil {
 		t.Fatalf("failed test %#v", err)
 	}
