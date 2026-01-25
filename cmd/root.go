@@ -22,11 +22,17 @@ func use_commit_times(path string) error {
 		return err
 	}
 
-	filemap, err := ls_files(repo)
+	worktree, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
-	err = use_commit_times_walk(repo, filemap, nil, nil)
+	workdir := worktree.Filesystem.Root()
+
+	filemap, err := ls_files(workdir)
+	if err != nil {
+		return err
+	}
+	err = use_commit_times_walk(workdir, filemap, nil, nil)
 	if err != nil {
 		return err
 	}

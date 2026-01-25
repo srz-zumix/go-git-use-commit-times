@@ -7,23 +7,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"time"
-
-	"github.com/go-git/go-git/v5"
 )
 
 // use_commit_times_git_cmd implements the same logic as the Perl script
 // https://gist.github.com/srz-zumix/0a526e8f9182549cbdb6d880a4477ff0
 // using git command line instead of go-git library
-func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time) error {
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	workdir := worktree.Filesystem.Root()
-
+func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, until *time.Time) error {
 	// Build git log command arguments
 	args := []string{"-c", "diff.renames=false", "log", "-m", "-r", "--name-only", "--no-color", "--pretty=raw", "-z"}
 
@@ -49,7 +40,7 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 	var lastCommitTime time.Time
 	data := output
 
-	// Pre-allocate batch for file updates
+	// Collect files to update per commit to reduce syscalls
 	filesToUpdate := make([]string, 0, 100)
 
 	for len(data) > 0 && len(filemap) > 0 {
@@ -85,7 +76,7 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 					line = line[:idx]
 				}
 
-				// Split by null bytes and process files
+				// Split by null bytes and collect files to update
 				start := 0
 				for i := 0; i <= len(line); i++ {
 					if i == len(line) || line[i] == 0 {
@@ -99,10 +90,11 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 					}
 				}
 
-				// Batch update files
+				// Update all files from this commit at once
 				if len(filesToUpdate) > 0 {
 					for _, file := range filesToUpdate {
-						fullpath := filepath.Join(workdir, file)
+						fullpath := filemap[file]
+						// Only update if file hasn't been modified or doesn't exist
 						if err := os.Chtimes(fullpath, commitTime, commitTime); err == nil {
 							delete(filemap, file)
 						}
@@ -119,10 +111,8 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 		// Use the last commit time for remaining files
 		for file := range filemap {
 			Logger.Warn("File not found", "path", file)
-			fullpath := filepath.Join(workdir, file)
-			err := os.Chtimes(fullpath, lastCommitTime, lastCommitTime)
-			if err != nil {
-				Logger.Error("Failed to set time", "file", file, "error", err)
+			if fullpath, exists := filemap[file]; exists {
+				os.Chtimes(fullpath, lastCommitTime, lastCommitTime)
 			}
 		}
 	}

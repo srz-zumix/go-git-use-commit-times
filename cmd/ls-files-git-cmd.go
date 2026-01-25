@@ -7,20 +7,13 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
-
-	"github.com/go-git/go-git/v5"
 )
 
-type FileIdMap = map[string]struct{}
+type FileIdMap = map[string]string
 
-func ls_files(repo *git.Repository) (FileIdMap, error) {
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-	workdir := worktree.Filesystem.Root()
-
+func ls_files(workdir string) (FileIdMap, error) {
 	// Execute git ls-files -z command
 	cmd := exec.Command("git", "ls-files", "-z")
 	cmd.Dir = workdir
@@ -39,7 +32,7 @@ func ls_files(repo *git.Repository) (FileIdMap, error) {
 		filename := scanner.Text()
 		if filename != "" {
 			// Use empty hash as we only need the filename for this implementation
-			files[filename] = struct{}{}
+			files[filename] = filepath.Join(workdir, filename)
 		}
 	}
 
@@ -67,13 +60,7 @@ func scanNullTerminated(data []byte, atEOF bool) (advance int, token []byte, err
 	return 0, nil, nil
 }
 
-func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
-	worktree, err := repo.Worktree()
-	if err != nil {
-		return nil, err
-	}
-	workdir := worktree.Filesystem.Root()
-
+func get_fileidmap(workdir string, fileList []string) (FileIdMap, error) {
 	filemap := make(FileIdMap, len(fileList))
 
 	// Verify each file exists using git ls-files
@@ -94,7 +81,7 @@ func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 		}
 
 		// Use empty hash as we only need the filename for this implementation
-		filemap[path] = struct{}{}
+		filemap[path] = filepath.Join(workdir, path)
 	}
 
 	return filemap, nil
