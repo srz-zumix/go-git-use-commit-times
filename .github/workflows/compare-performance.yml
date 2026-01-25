@@ -24,7 +24,7 @@ jobs:
         run: go mod tidy
 
       - name: Build
-        run: go build -o git-use-commit-times
+        run: go build -ldflags="-s -w" -trimpath -o git-use-commit-times
 
       - name: Test Repo Clone
         run: |
