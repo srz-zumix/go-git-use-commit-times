@@ -34,61 +34,50 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 		return fmt.Errorf("failed to execute git log: %w", err)
 	}
 
-	// Parse git log output more efficiently
+	// Parse git log output following the Perl script logic
 	var commitTime time.Time
 	var lastCommitTime time.Time
-	data := output
 
-	// Pre-compile patterns for faster matching
-	committerPrefix := []byte("committer ")
-	nullByte := byte(0)
+	// Split output by newlines (Perl reads line by line with $/ = "\n")
+	lines := bytes.Split(output, []byte{'\n'})
 
-	for len(data) > 0 && len(filemap) > 0 {
-		// Find next newline
-		nl := bytes.IndexByte(data, '\n')
-		if nl < 0 {
+	for _, line := range lines {
+		if len(filemap) == 0 {
 			break
 		}
 
-		line := data[:nl]
-		data = data[nl+1:]
-
-		// Fast check for committer line (starts with 'c')
-		if len(line) > 10 && line[0] == 'c' && bytes.HasPrefix(line, committerPrefix) {
-			// Parse timestamp directly without string conversion
+		// Parse committer line to extract timestamp
+		if bytes.HasPrefix(line, []byte("committer ")) {
 			if ts := parseCommitterTimestampFast(line); ts > 0 {
 				commitTime = time.Unix(ts, 0)
 				lastCommitTime = commitTime
 			}
-		} else if len(line) > 0 && line[len(line)-1] == nullByte {
-			// This line contains file names (ends with null byte)
-			// Remove trailing null
-			line = line[:len(line)-1]
-
-			// Split by \x00\x00commit if present
+		} else if bytes.Contains(line, []byte{0, 0, 'c', 'o', 'm', 'm', 'i', 't', ' '}) || bytes.HasSuffix(line, []byte{0}) {
+			// This line contains file names
+			// Remove the pattern "\0\0commit [hash]..." if present
 			if idx := bytes.Index(line, []byte{0, 0, 'c', 'o', 'm', 'm', 'i', 't', ' '}); idx >= 0 {
 				line = line[:idx]
+			} else if bytes.HasSuffix(line, []byte{0}) {
+				// Remove trailing null
+				line = line[:len(line)-1]
 			}
 
-			// Process null-separated filenames without allocating new slices
 			if len(line) == 0 {
 				continue
 			}
 
-			start := 0
-			for i := 0; i <= len(line); i++ {
-				if i == len(line) || line[i] == nullByte {
-					if i > start {
-						// Convert to string only when we find a match
-						filename := string(line[start:i])
-						if fullpath, exists := filemap[filename]; exists {
-							// Update file immediately and remove from map
-							if os.Chtimes(fullpath, commitTime, commitTime) == nil {
-								delete(filemap, filename)
-							}
-						}
+			// Split by null bytes to get file names
+			files := bytes.Split(line, []byte{0})
+			for _, fileBytes := range files {
+				if len(fileBytes) == 0 {
+					continue
+				}
+
+				filename := string(fileBytes)
+				if fullpath, exists := filemap[filename]; exists {
+					if os.Chtimes(fullpath, commitTime, commitTime) == nil {
+						delete(filemap, filename)
 					}
-					start = i + 1
 				}
 			}
 		}
