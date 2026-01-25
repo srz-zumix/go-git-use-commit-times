@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"time"
 )
 
@@ -40,12 +39,9 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 	var lastCommitTime time.Time
 	data := output
 
-	// Collect files to update per commit to reduce syscalls
-	filesToUpdate := make([]string, 0, 100)
-
 	// Pre-compile patterns for faster matching
 	committerPrefix := []byte("committer ")
-	nullNull := []byte("\x00\x00")
+	nullByte := byte(0)
 
 	for len(data) > 0 && len(filemap) > 0 {
 		// Find next newline
@@ -64,45 +60,35 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 				commitTime = time.Unix(ts, 0)
 				lastCommitTime = commitTime
 			}
-		} else if len(line) > 0 && (line[len(line)-1] == 0 || bytes.Contains(line, nullNull)) {
-			// This line contains file names
-			filesToUpdate = filesToUpdate[:0] // Reset slice
-
+		} else if len(line) > 0 && line[len(line)-1] == nullByte {
+			// This line contains file names (ends with null byte)
 			// Remove trailing null
-			if line[len(line)-1] == 0 {
-				line = line[:len(line)-1]
-			}
+			line = line[:len(line)-1]
 
 			// Split by \x00\x00commit if present
-			if idx := bytes.Index(line, nullNull); idx >= 0 {
+			if idx := bytes.Index(line, []byte{0, 0, 'c', 'o', 'm', 'm', 'i', 't', ' '}); idx >= 0 {
 				line = line[:idx]
 			}
 
-			// Process null-separated filenames more efficiently
+			// Process null-separated filenames without allocating new slices
 			if len(line) == 0 {
 				continue
 			}
 
-			// Split by null bytes using bytes.Split for better performance
-			parts := bytes.Split(line, []byte{0})
-			for _, part := range parts {
-				if len(part) == 0 {
-					continue
-				}
-				filename := string(part)
-				if _, exists := filemap[filename]; exists {
-					filesToUpdate = append(filesToUpdate, filename)
-				}
-			}
-
-			// Update all files from this commit at once
-			if len(filesToUpdate) > 0 {
-				for _, file := range filesToUpdate {
-					fullpath := filemap[file]
-					// Only update if file hasn't been modified or doesn't exist
-					if err := os.Chtimes(fullpath, commitTime, commitTime); err == nil {
-						delete(filemap, file)
+			start := 0
+			for i := 0; i <= len(line); i++ {
+				if i == len(line) || line[i] == nullByte {
+					if i > start {
+						// Convert to string only when we find a match
+						filename := string(line[start:i])
+						if fullpath, exists := filemap[filename]; exists {
+							// Update file immediately and remove from map
+							if os.Chtimes(fullpath, commitTime, commitTime) == nil {
+								delete(filemap, filename)
+							}
+						}
 					}
+					start = i + 1
 				}
 			}
 		}
@@ -132,7 +118,7 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 func parseCommitterTimestampFast(line []byte) int64 {
 	// Find the last two space-separated fields
 	lastSpace := bytes.LastIndexByte(line, ' ')
-	if lastSpace < 0 {
+	if lastSpace < 10 {
 		return 0
 	}
 
@@ -141,11 +127,13 @@ func parseCommitterTimestampFast(line []byte) int64 {
 		return 0
 	}
 
-	// Parse the timestamp (second-to-last field)
-	timestampBytes := line[secondLastSpace+1 : lastSpace]
-	timestamp, err := strconv.ParseInt(string(timestampBytes), 10, 64)
-	if err != nil {
-		return 0
+	// Parse the timestamp manually (faster than strconv.ParseInt for this case)
+	var timestamp int64
+	for i := secondLastSpace + 1; i < lastSpace; i++ {
+		if line[i] < '0' || line[i] > '9' {
+			return 0
+		}
+		timestamp = timestamp*10 + int64(line[i]-'0')
 	}
 
 	return timestamp

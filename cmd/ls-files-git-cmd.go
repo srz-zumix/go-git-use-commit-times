@@ -31,7 +31,6 @@ func ls_files(workdir string) (FileIdMap, error) {
 	for scanner.Scan() {
 		filename := scanner.Text()
 		if filename != "" {
-			// Use empty hash as we only need the filename for this implementation
 			files[filename] = filepath.Join(workdir, filename)
 		}
 	}

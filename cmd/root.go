@@ -9,8 +9,6 @@ import (
 )
 
 var (
-	cfgFile    string
-	progress   bool
 	logLevel   string
 	since      string
 	until      string
@@ -71,8 +69,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.git-use-commit-times.yaml)")
-	rootCmd.Flags().BoolVarP(&progress, "progress", "p", false, "Show progressbar.")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "error", "Log level (debug, info, warn, error).")
 	rootCmd.Flags().StringVar(&since, "since", "", "Only consider commits after this date (e.g., '2023-01-02').")
 	rootCmd.Flags().StringVar(&until, "until", "", "Only consider commits before this date (e.g., '2023-01-02').")
