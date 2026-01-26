@@ -1,17 +1,17 @@
+//go:build usegogit
+
 package cmd
 
 import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-type FileIdMap = map[string]plumbing.Hash
+type FileIdMap = map[string]any
 
 func ls_files(repo *git.Repository) (FileIdMap, error) {
-	Logger.Debug("Listing all files in repository")
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err
@@ -36,12 +36,10 @@ func ls_files(repo *git.Repository) (FileIdMap, error) {
 		Logger.Warn("Failed to list files with go-git, using fallback", "error", err)
 		return nil, err
 	}
-	Logger.Debug("Listed files successfully", "count", len(files))
 	return files, nil
 }
 
 func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
-	Logger.Debug("Getting file IDs", "count", len(fileList))
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err
@@ -66,6 +64,5 @@ func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
 		}
 		filemap[path] = file.Hash
 	}
-	Logger.Debug("Got file IDs successfully", "count", len(filemap))
 	return filemap, nil
 }
