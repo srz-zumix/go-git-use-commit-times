@@ -1,16 +1,18 @@
 # git-use-commit-times
 
-[![GitHub Actions Status](https://github.com/srz-zumix/git-use-commit-times/workflows/GitHub%20Actions/badge.svg?branch=master)](https://github.com/srz-zumix/git-use-commit-times/actions?query=workflow%3A%22GitHub+Actions%22)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-
 Set files mtime by lates commit time.
 
-## How to use
+## Install
 
-1. git clone https://github.com/srz-zumix/go-git-use-commit-times.git
-1. cd go-git-use-commit-times
-1. go install
-1. cd /path/to/your/repo && git use-commit-time
+```sh
+brew install srz-zumix/tap/go-git-use-commit-times
+```
+
+## Usage
+
+```sh
+git-use-commit-times
+```
 
 ## Recommended
 
