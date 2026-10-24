@@ -39,3 +39,6 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+      - name: Run tests (usegogit)
+        run: go test -tags=usegogit ./...

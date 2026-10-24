@@ -10,9 +10,11 @@ import (
 )
 
 var (
-	logLevel   string
-	since      string
-	until      string
+	logLevel     string
+	since        string
+	until        string
+	fetchEnabled bool
+	remoteName   string
 )
 
 func use_commit_times(path string) error {
@@ -27,11 +29,17 @@ func use_commit_times(path string) error {
 	}
 	workdir := worktree.Filesystem.Root()
 
+	if fetchEnabled {
+		if err := unshallow(workdir, remoteName); err != nil {
+			return fmt.Errorf("failed to fetch history: %w", err)
+		}
+	}
+
 	filemap, err := ls_files(workdir)
 	if err != nil {
 		return err
 	}
-	
+
 	// Parse time parameters
 	var sinceTime, untilTime *time.Time
 	if since != "" {
@@ -48,7 +56,7 @@ func use_commit_times(path string) error {
 		}
 		untilTime = &t
 	}
-	
+
 	return use_commit_times_walk(workdir, filemap, sinceTime, untilTime)
 }
 
@@ -83,4 +91,6 @@ func init() {
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "error", "Log level (debug, info, warn, error).")
 	rootCmd.Flags().StringVar(&since, "since", "", "Only consider commits after this date (e.g., '2023-01-02').")
 	rootCmd.Flags().StringVar(&until, "until", "", "Only consider commits before this date (e.g., '2023-01-02').")
+	rootCmd.Flags().BoolVar(&fetchEnabled, "fetch", false, "Fetch full history from the remote if the repository is shallow.")
+	rootCmd.Flags().StringVar(&remoteName, "remote", "origin", "Remote name used by --fetch.")
 }
