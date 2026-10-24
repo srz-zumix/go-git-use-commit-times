@@ -16,7 +16,7 @@ git-use-commit-times
 
 ### Shallow clones
 
-For a shallow clone (e.g. `actions/checkout` with the default depth), use `--fetch` to download the commit history from the remote first. Blobs are not downloaded (`--filter=blob:none`), but the repository becomes a partial clone.
+For a shallow clone (e.g. `actions/checkout` with the default depth), use `--fetch` to download the commit history from the remote first. In the default build, blobs are not downloaded (`--filter=blob:none`), but the repository becomes a partial clone. In the `usegogit` build, blobs are also downloaded because go-git does not support partial clones.
 
 ```sh
 git-use-commit-times --fetch --remote origin
