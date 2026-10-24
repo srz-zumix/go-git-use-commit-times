@@ -37,6 +37,11 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 		return fmt.Errorf("failed to execute git log: %w", err)
 	}
 
+	timeLinePrefix := "committer "
+	if useAuthorDate {
+		timeLinePrefix = "author "
+	}
+
 	// Parse git log output following the Perl script logic
 	var commitTime time.Time
 	var lastCommitTime time.Time
@@ -49,8 +54,8 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 			break
 		}
 
-		// Parse committer line to extract timestamp
-		if bytes.HasPrefix(line, []byte("committer ")) {
+		// Parse author/committer line to extract timestamp
+		if bytes.HasPrefix(line, []byte(timeLinePrefix)) {
 			if ts := parseCommitterTimestampFast(line); ts > 0 {
 				commitTime = time.Unix(ts, 0)
 				lastCommitTime = commitTime
@@ -105,8 +110,8 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 	return nil
 }
 
-// parseCommitterTimestampFast extracts Unix timestamp from committer line using byte operations
-// Expected format: "committer Name <email> timestamp timezone"
+// parseCommitterTimestampFast extracts Unix timestamp from an author/committer line using byte operations
+// Expected format: "committer|author Name <email> timestamp timezone"
 func parseCommitterTimestampFast(line []byte) int64 {
 	// Find the last two space-separated fields
 	lastSpace := bytes.LastIndexByte(line, ' ')

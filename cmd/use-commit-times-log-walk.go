@@ -43,7 +43,13 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 	if err != nil {
 		return err
 	}
-	lastTime := headCommit.Committer.When
+	commitTimeOf := func(c *object.Commit) time.Time {
+		if useAuthorDate {
+			return c.Author.When
+		}
+		return c.Committer.When
+	}
+	lastTime := commitTimeOf(headCommit)
 
 	on_chtimes := func(path string, mtime time.Time) error {
 		if _, ok := filemap[path]; ok {
@@ -72,7 +78,7 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 			return fmt.Errorf("done")
 		}
 
-		mtime := commit.Committer.When
+		mtime := commitTimeOf(commit)
 		lastTime = mtime
 
 		tree, err := commit.Tree()

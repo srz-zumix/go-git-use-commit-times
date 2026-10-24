@@ -10,11 +10,12 @@ import (
 )
 
 var (
-	logLevel     string
-	since        string
-	until        string
-	fetchEnabled bool
-	remoteName   string
+	logLevel      string
+	since         string
+	until         string
+	fetchEnabled  bool
+	remoteName    string
+	useAuthorDate bool
 )
 
 func use_commit_times(path string) error {
@@ -93,4 +94,5 @@ func init() {
 	rootCmd.Flags().StringVar(&until, "until", "", "Only consider commits before this date (e.g., '2023-01-02').")
 	rootCmd.Flags().BoolVar(&fetchEnabled, "fetch", false, "Fetch full history from the remote if the repository is shallow.")
 	rootCmd.Flags().StringVar(&remoteName, "remote", "origin", "Remote name used by --fetch.")
+	rootCmd.Flags().BoolVar(&useAuthorDate, "author-date", false, "Use the author date instead of the committer date.")
 }
