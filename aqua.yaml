@@ -9,16 +9,16 @@
 #   - all
 registries:
   - type: standard
-    ref: v4.469.0 # renovate: depName=aquaproj/aqua-registry
+    ref: v4.576.0 # renovate: depName=aquaproj/aqua-registry
 packages:
-  - name: suzuki-shunsuke/pinact@v3.9.0
+  - name: suzuki-shunsuke/pinact@v5.0.1
     tags:
       - dev
-  - name: zizmorcore/zizmor@v1.22.0
+  - name: zizmorcore/zizmor@v1.31.1
     tags:
       - dev
       - ci
-  - name: goreleaser/goreleaser@v2.13.3
+  - name: goreleaser/goreleaser@v2.19.0
     tags:
       - dev
       - ci
