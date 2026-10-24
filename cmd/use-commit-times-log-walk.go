@@ -13,6 +13,9 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
+// go-git v5 does not support partial clone, so blobs are fetched too.
+var fetchFilterArgs []string
+
 func chtimes(workdir string, path string, mtime time.Time) error {
 	fullpath := filepath.Join(workdir, path)
 	stat, err := os.Stat(fullpath)
@@ -24,12 +27,11 @@ func chtimes(workdir string, path string, mtime time.Time) error {
 	return nil
 }
 
-func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.Time, until *time.Time) error {
-	worktree, err := repo.Worktree()
+func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, until *time.Time) error {
+	repo, err := git.PlainOpen(workdir)
 	if err != nil {
 		return err
 	}
-	workdir := worktree.Filesystem.Root()
 
 	ref, err := repo.Head()
 	if err != nil {
@@ -51,12 +53,12 @@ func use_commit_times_walk(repo *git.Repository, filemap FileIdMap, since *time.
 			}
 			delete(filemap, path)
 		}
-			return nil
+		return nil
 	}
 
 	// Get commit history in chronological order
 	commitIter, err := repo.Log(&git.LogOptions{
-		From: ref.Hash(),
+		From:  ref.Hash(),
 		Order: git.LogOrderCommitterTime,
 		Since: since,
 		Until: until,

@@ -11,7 +11,12 @@ import (
 
 type FileIdMap = map[string]any
 
-func ls_files(repo *git.Repository) (FileIdMap, error) {
+func ls_files(workdir string) (FileIdMap, error) {
+	repo, err := git.PlainOpen(workdir)
+	if err != nil {
+		return nil, err
+	}
+
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err
@@ -39,7 +44,12 @@ func ls_files(repo *git.Repository) (FileIdMap, error) {
 	return files, nil
 }
 
-func get_fileidmap(repo *git.Repository, fileList []string) (FileIdMap, error) {
+func get_fileidmap(workdir string, fileList []string) (FileIdMap, error) {
+	repo, err := git.PlainOpen(workdir)
+	if err != nil {
+		return nil, err
+	}
+
 	ref, err := repo.Head()
 	if err != nil {
 		return nil, err

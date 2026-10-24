@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// Blobs are not needed for timestamps.
+var fetchFilterArgs = []string{"--filter=blob:none"}
+
 // use_commit_times_git_cmd implements the same logic as the Perl script
 // https://gist.github.com/srz-zumix/0a526e8f9182549cbdb6d880a4477ff0
 // using git command line instead of go-git library
