@@ -14,6 +14,14 @@ brew install srz-zumix/tap/go-git-use-commit-times
 git-use-commit-times
 ```
 
+### Author date
+
+By default the committer date is used. Use `--author-date` to set the author date instead.
+
+```sh
+git-use-commit-times --author-date
+```
+
 ### Shallow clones
 
 For a shallow clone (e.g. `actions/checkout` with the default depth), use `--fetch` to download the commit history from the remote first. In the default build, blobs are not downloaded (`--filter=blob:none`), but the repository becomes a partial clone. In the `usegogit` build, blobs are also downloaded because go-git does not support partial clones.
