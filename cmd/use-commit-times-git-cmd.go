@@ -55,7 +55,8 @@ func use_commit_times_walk(workdir string, filemap FileIdMap, since *time.Time, 
 		}
 
 		// Parse author/committer line to extract timestamp
-		if bytes.HasPrefix(line, []byte(timeLinePrefix)) {
+		// (header lines never contain NUL; NUL-containing lines are filename records)
+		if bytes.HasPrefix(line, []byte(timeLinePrefix)) && bytes.IndexByte(line, 0) < 0 {
 			if ts := parseCommitterTimestampFast(line); ts > 0 {
 				commitTime = time.Unix(ts, 0)
 				lastCommitTime = commitTime
