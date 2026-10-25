@@ -30,11 +30,19 @@ For a shallow clone (e.g. `actions/checkout` with the default depth), use `--fet
 git-use-commit-times --fetch --remote origin
 ```
 
+To authenticate the fetch to an HTTP(S) remote (e.g. a private repository), set the `GITHUB_TOKEN` environment variable or pass `--github-token`. The token is supplied only to the remote's scheme and host. Prefer the environment variable, since a command-line value can be visible to other users in the process list.
+
+```sh
+GITHUB_TOKEN=... git-use-commit-times --fetch
+```
+
 ```yaml
 - uses: actions/checkout@v7
   with:
-    persist-credentials: true
+    persist-credentials: false
 - run: git-use-commit-times --fetch
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Recommended

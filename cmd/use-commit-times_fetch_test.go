@@ -90,7 +90,7 @@ func TestUnshallowRestoresCommitTime(t *testing.T) {
 	if shallow, err := isShallow(dst); err != nil || !shallow {
 		t.Fatalf("expected shallow clone: shallow=%v err=%v", shallow, err)
 	}
-	if err := unshallow(dst, "origin"); err != nil {
+	if err := unshallow(dst, "origin", ""); err != nil {
 		t.Fatalf("unshallow failed: %v", err)
 	}
 	if shallow, err := isShallow(dst); err != nil || shallow {
@@ -112,5 +112,60 @@ func TestUnshallowRestoresCommitTime(t *testing.T) {
 	want, _ := time.Parse(time.RFC3339, "2020-06-12T06:03:11+00:00")
 	if !info.ModTime().Equal(want) {
 		t.Fatalf("modtime %s, want %s", info.ModTime().UTC(), want.UTC())
+	}
+}
+
+func TestUnshallowWithTokenOnLocalRemote(t *testing.T) {
+	dst := newDepth1Clone(t)
+	if err := unshallow(dst, "origin", "dummy-token"); err != nil {
+		t.Fatalf("unshallow with token failed: %v", err)
+	}
+	if shallow, err := isShallow(dst); err != nil || shallow {
+		t.Fatalf("expected full history after unshallow: shallow=%v err=%v", shallow, err)
+	}
+}
+
+func TestCredentialArgsSuppliesTokenOnlyForRemoteHost(t *testing.T) {
+	dir := t.TempDir()
+	runTestGit(t, dir, nil, "init", "-q")
+	runTestGit(t, dir, nil, "remote", "add", "origin", "https://github.com/srz-zumix/example.git")
+
+	args, err := credentialArgs(dir, "origin")
+	if err != nil {
+		t.Fatalf("credentialArgs failed: %v", err)
+	}
+	if len(args) == 0 {
+		t.Fatal("expected credential args for https remote")
+	}
+
+	fill := func(host string) string {
+		cmd := exec.Command("git", append(args, "credential", "fill")...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GITHUB_TOKEN=secret-token", "GIT_TERMINAL_PROMPT=0")
+		cmd.Stdin = strings.NewReader("protocol=https\nhost=" + host + "\n\n")
+		// Exits non-zero when no credential is found (prompting is disabled), which is expected for other hosts.
+		out, _ := cmd.Output()
+		return string(out)
+	}
+
+	if got := fill("github.com"); !strings.Contains(got, "password=secret-token") {
+		t.Fatalf("expected token for github.com, got:\n%s", got)
+	}
+	if got := fill("example.com"); strings.Contains(got, "secret-token") {
+		t.Fatalf("token must not be sent to other hosts, got:\n%s", got)
+	}
+}
+
+func TestCredentialArgsNoneForLocalRemote(t *testing.T) {
+	dir := t.TempDir()
+	runTestGit(t, dir, nil, "init", "-q")
+	runTestGit(t, dir, nil, "remote", "add", "origin", "/some/local/path")
+
+	args, err := credentialArgs(dir, "origin")
+	if err != nil {
+		t.Fatalf("credentialArgs failed: %v", err)
+	}
+	if len(args) != 0 {
+		t.Fatalf("expected no args for local remote, got %v", args)
 	}
 }
