@@ -16,6 +16,7 @@ var (
 	fetchEnabled  bool
 	remoteName    string
 	useAuthorDate bool
+	githubToken   string
 )
 
 func use_commit_times(path string) error {
@@ -31,7 +32,11 @@ func use_commit_times(path string) error {
 	workdir := worktree.Filesystem.Root()
 
 	if fetchEnabled {
-		if err := unshallow(workdir, remoteName); err != nil {
+		token := githubToken
+		if token == "" {
+			token = os.Getenv("GITHUB_TOKEN")
+		}
+		if err := unshallow(workdir, remoteName, token); err != nil {
 			return fmt.Errorf("failed to fetch history: %w", err)
 		}
 	}
@@ -94,5 +99,6 @@ func init() {
 	rootCmd.Flags().StringVar(&until, "until", "", "Only consider commits before this date (e.g., '2023-01-02').")
 	rootCmd.Flags().BoolVar(&fetchEnabled, "fetch", false, "Fetch full history from the remote if the repository is shallow.")
 	rootCmd.Flags().StringVar(&remoteName, "remote", "origin", "Remote name used by --fetch.")
+	rootCmd.Flags().StringVar(&githubToken, "github-token", "", "GitHub token for HTTP(S) authentication by --fetch. Defaults to the GITHUB_TOKEN environment variable.")
 	rootCmd.Flags().BoolVar(&useAuthorDate, "author-date", false, "Use the author date instead of the committer date.")
 }
